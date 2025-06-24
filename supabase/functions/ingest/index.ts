@@ -158,7 +158,7 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-function categorizeechnology(techName: string): string {
+function categorizeTechnology(techName: string): string {
   const categories = {
     'JavaScript Framework': [
       'React', 'Vue.js', 'Angular', 'Svelte', 'Next.js', 'Nuxt.js', 
