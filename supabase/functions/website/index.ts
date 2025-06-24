@@ -34,7 +34,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Fetch website with technologies
+    // Fetch website with technologies and metadata
     const { data: website, error } = await supabaseClient
       .from('websites')
       .select(`
@@ -42,6 +42,7 @@ Deno.serve(async (req: Request) => {
         url,
         last_scraped,
         created_at,
+        metadata,
         website_technologies (
           technologies (
             id,
@@ -70,6 +71,7 @@ Deno.serve(async (req: Request) => {
       url: website.url,
       lastScraped: website.last_scraped,
       createdAt: website.created_at,
+      metadata: website.metadata || {},
       technologies: website.website_technologies.map(wt => ({
         id: wt.technologies.id,
         name: wt.technologies.name,

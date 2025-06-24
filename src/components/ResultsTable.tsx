@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Clock } from 'lucide-react';
+import { ExternalLink, Clock, Shield, Smartphone, Zap } from 'lucide-react';
 import { WebsiteResult } from '../lib/api';
 
 interface ResultsTableProps {
@@ -24,12 +24,31 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
     return `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago`;
   };
 
+  const getMetadataIndicators = (metadata: any) => {
+    const indicators = [];
+    
+    if (metadata?.is_https) {
+      indicators.push({ icon: Shield, color: 'text-green-600', title: 'HTTPS Secure' });
+    }
+    
+    if (metadata?.is_responsive) {
+      indicators.push({ icon: Smartphone, color: 'text-blue-600', title: 'Responsive Design' });
+    }
+    
+    if (metadata?.has_service_worker) {
+      indicators.push({ icon: Zap, color: 'text-purple-600', title: 'Service Worker' });
+    }
+    
+    return indicators.slice(0, 3); // Show max 3 indicators
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
         <div className="animate-pulse space-y-4">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="grid grid-cols-3 gap-4">
+            <div key={i} className="grid grid-cols-4 gap-4">
+              <div className="h-4 bg-gray-200 rounded"></div>
               <div className="h-4 bg-gray-200 rounded"></div>
               <div className="h-4 bg-gray-200 rounded"></div>
               <div className="h-4 bg-gray-200 rounded"></div>
@@ -56,6 +75,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
             <tr>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Website</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Technologies</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Features</th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Last Scraped</th>
             </tr>
           </thead>
@@ -94,6 +114,25 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
                     {result.technologies.length > 3 && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                         +{result.technologies.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center space-x-2">
+                    {getMetadataIndicators(result.metadata).map((indicator, index) => {
+                      const Icon = indicator.icon;
+                      return (
+                        <Icon
+                          key={index}
+                          className={`h-4 w-4 ${indicator.color}`}
+                          title={indicator.title}
+                        />
+                      );
+                    })}
+                    {result.metadata?.page_load_time && (
+                      <span className="text-xs text-gray-500" title="Page load time">
+                        {Math.round(result.metadata.page_load_time)}ms
                       </span>
                     )}
                   </div>

@@ -32,6 +32,12 @@ Deno.serve(async (req: Request) => {
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
 
+    // Metadata filters
+    const isResponsive = searchParams.get('responsive');
+    const isHttps = searchParams.get('https');
+    const isSpa = searchParams.get('spa');
+    const hasServiceWorker = searchParams.get('service_worker');
+
     // Build the query
     let queryBuilder = supabaseClient
       .from('websites')
@@ -39,6 +45,7 @@ Deno.serve(async (req: Request) => {
         id,
         url,
         last_scraped,
+        metadata,
         website_technologies!inner (
           technologies (
             id,
@@ -61,9 +68,28 @@ Deno.serve(async (req: Request) => {
       queryBuilder = queryBuilder.eq('website_technologies.technologies.category', category);
     }
 
+    // Apply metadata filters
+    if (isResponsive !== null) {
+      queryBuilder = queryBuilder.eq('metadata->>is_responsive', isResponsive);
+    }
+
+    if (isHttps !== null) {
+      queryBuilder = queryBuilder.eq('metadata->>is_https', isHttps);
+    }
+
+    if (isSpa !== null) {
+      queryBuilder = queryBuilder.eq('metadata->>likely_spa', isSpa);
+    }
+
+    if (hasServiceWorker !== null) {
+      queryBuilder = queryBuilder.eq('metadata->>has_service_worker', hasServiceWorker);
+    }
+
     // Apply sorting
     if (sortBy === 'url') {
       queryBuilder = queryBuilder.order('url', { ascending: sortOrder === 'asc' });
+    } else if (sortBy === 'load_time') {
+      queryBuilder = queryBuilder.order('metadata->>page_load_time', { ascending: sortOrder === 'asc' });
     } else {
       queryBuilder = queryBuilder.order('last_scraped', { ascending: sortOrder === 'asc' });
     }
@@ -71,12 +97,12 @@ Deno.serve(async (req: Request) => {
     // Apply pagination
     queryBuilder = queryBuilder.range(offset, offset + limit - 1);
 
-    const { data: websites, error, count } = await queryBuilder;
+    const { data: websites, error } = await queryBuilder;
 
     if (error) {
       console.error('Search error:', error);
       return new Response(
-        JSON.stringify({ error: 'Search failed' }),
+        JSON.stringify({ error: 'Search failed', details: error.message }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -100,14 +126,34 @@ Deno.serve(async (req: Request) => {
           name: tech.name,
           category: tech.category
         })),
-        lastScraped: website.last_scraped
+        lastScraped: website.last_scraped,
+        metadata: website.metadata || {}
       };
     }) || [];
 
-    // Get total count for pagination
-    const { count: totalCount } = await supabaseClient
+    // Get total count for pagination (with same filters)
+    let countQuery = supabaseClient
       .from('websites')
       .select('*', { count: 'exact', head: true });
+
+    // Apply same filters for count
+    if (query) {
+      countQuery = countQuery.ilike('url', `%${query}%`);
+    }
+    if (isResponsive !== null) {
+      countQuery = countQuery.eq('metadata->>is_responsive', isResponsive);
+    }
+    if (isHttps !== null) {
+      countQuery = countQuery.eq('metadata->>is_https', isHttps);
+    }
+    if (isSpa !== null) {
+      countQuery = countQuery.eq('metadata->>likely_spa', isSpa);
+    }
+    if (hasServiceWorker !== null) {
+      countQuery = countQuery.eq('metadata->>has_service_worker', hasServiceWorker);
+    }
+
+    const { count: totalCount } = await countQuery;
 
     return new Response(
       JSON.stringify({
@@ -127,7 +173,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Search function error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

@@ -7,11 +7,19 @@ interface SearchFiltersProps {
     category?: string;
     sort?: string;
     order?: string;
+    responsive?: string;
+    https?: string;
+    spa?: string;
+    service_worker?: string;
   }) => void;
   currentFilters: {
     category?: string;
     sort?: string;
     order?: string;
+    responsive?: string;
+    https?: string;
+    spa?: string;
+    service_worker?: string;
   };
 }
 
@@ -89,9 +97,10 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ onFiltersChange, currentF
               )}
             </div>
 
+            {/* Technology Category */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category
+                Technology Category
               </label>
               <select
                 value={currentFilters.category || ''}
@@ -107,32 +116,95 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ onFiltersChange, currentF
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Sort by
-              </label>
-              <select
-                value={currentFilters.sort || 'last_scraped'}
-                onChange={(e) => handleFilterChange('sort', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="last_scraped">Last scraped</option>
-                <option value="url">Website URL</option>
-              </select>
+            {/* Website Characteristics */}
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Website Characteristics</h4>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Responsive Design</label>
+                  <select
+                    value={currentFilters.responsive || ''}
+                    onChange={(e) => handleFilterChange('responsive', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Any</option>
+                    <option value="true">Responsive</option>
+                    <option value="false">Not Responsive</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">HTTPS</label>
+                  <select
+                    value={currentFilters.https || ''}
+                    onChange={(e) => handleFilterChange('https', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Any</option>
+                    <option value="true">HTTPS</option>
+                    <option value="false">HTTP</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Single Page App</label>
+                  <select
+                    value={currentFilters.spa || ''}
+                    onChange={(e) => handleFilterChange('spa', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Any</option>
+                    <option value="true">SPA</option>
+                    <option value="false">Traditional</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Service Worker</label>
+                  <select
+                    value={currentFilters.service_worker || ''}
+                    onChange={(e) => handleFilterChange('service_worker', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Any</option>
+                    <option value="true">Has Service Worker</option>
+                    <option value="false">No Service Worker</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Order
-              </label>
-              <select
-                value={currentFilters.order || 'desc'}
-                onChange={(e) => handleFilterChange('order', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="desc">Newest first</option>
-                <option value="asc">Oldest first</option>
-              </select>
+            {/* Sorting */}
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Sorting</h4>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Sort by</label>
+                  <select
+                    value={currentFilters.sort || 'last_scraped'}
+                    onChange={(e) => handleFilterChange('sort', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="last_scraped">Last scraped</option>
+                    <option value="url">Website URL</option>
+                    <option value="load_time">Page load time</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Order</label>
+                  <select
+                    value={currentFilters.order || 'desc'}
+                    onChange={(e) => handleFilterChange('order', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="desc">Newest first</option>
+                    <option value="asc">Oldest first</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </div>

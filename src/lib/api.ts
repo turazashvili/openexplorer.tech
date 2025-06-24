@@ -5,6 +5,7 @@ export interface WebsiteResult {
   url: string;
   technologies: Technology[];
   lastScraped: string;
+  metadata?: Record<string, any>;
 }
 
 export interface Technology {
@@ -17,10 +18,14 @@ export interface SearchParams {
   q?: string;
   tech?: string;
   category?: string;
-  sort?: 'url' | 'last_scraped';
+  sort?: 'url' | 'last_scraped' | 'load_time';
   order?: 'asc' | 'desc';
   page?: number;
   limit?: number;
+  responsive?: string;
+  https?: string;
+  spa?: string;
+  service_worker?: string;
 }
 
 export interface SearchResponse {
@@ -38,6 +43,7 @@ export interface WebsiteDetails {
   url: string;
   lastScraped: string;
   createdAt: string;
+  metadata: Record<string, any>;
   technologies: Technology[];
 }
 
@@ -105,6 +111,7 @@ export async function getTechnologyDetails(id: string): Promise<TechnologyDetail
 export async function ingestWebsiteData(data: {
   url: string;
   technologies: string[];
+  metadata?: Record<string, any>;
   scraped_at?: string;
 }): Promise<any> {
   const response = await fetch(`${API_BASE_URL}/ingest`, {
