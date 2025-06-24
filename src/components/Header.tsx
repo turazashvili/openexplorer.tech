@@ -11,6 +11,21 @@ const Header: React.FC = () => {
             <Database className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
             <span className="text-lg sm:text-xl font-bold text-gray-900">Open Tech Explorer</span>
           </Link>
+          
+          {/* Bolt.new Badge */}
+          <a
+            href="https://bolt.new/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-shrink-0 transition-transform hover:scale-105"
+            title="Made with Bolt.new"
+          >
+            <img
+              src="/black_circle_360x360.png"
+              alt="Made with Bolt.new"
+              className="h-8 w-8 sm:h-10 sm:w-10"
+            />
+          </a>
         </div>
       </div>
     </header>
