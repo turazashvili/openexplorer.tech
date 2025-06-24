@@ -1,24 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ExternalLink, Clock, Calendar, ArrowLeft, Shield, Smartphone, Zap, Globe } from 'lucide-react';
-import { getWebsiteDetails, WebsiteDetails } from '../lib/api';
+import { getWebsiteDetailsByDomain, WebsiteDetails } from '../lib/api';
 
 const WebsiteDetailsPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { domain } = useParams<{ domain: string }>();
   const [website, setWebsite] = useState<WebsiteDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (id) {
-      fetchWebsiteDetails(id);
+    if (domain) {
+      fetchWebsiteDetails(decodeURIComponent(domain));
     }
-  }, [id]);
+  }, [domain]);
 
-  const fetchWebsiteDetails = async (websiteId: string) => {
+  const fetchWebsiteDetails = async (websiteDomain: string) => {
     try {
       setLoading(true);
-      const data = await getWebsiteDetails(websiteId);
+      const data = await getWebsiteDetailsByDomain(websiteDomain);
       setWebsite(data);
     } catch (err) {
       setError('Failed to load website details');
@@ -101,7 +101,7 @@ const WebsiteDetailsPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 py-8 sm:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Website Not Found</h1>
-          <p className="text-gray-600 mb-8">{error || 'The requested website could not be found.'}</p>
+          <p className="text-gray-600 mb-8">{error || `The website "${domain}" could not be found in our database.`}</p>
           <Link
             to="/"
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

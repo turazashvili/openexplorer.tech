@@ -195,6 +195,11 @@ const TechnologyListPage: React.FC = () => {
     return indicators.slice(0, 3);
   };
 
+  // Helper function to create website URL from domain
+  const getWebsiteUrl = (domain: string) => {
+    return `/website/${encodeURIComponent(domain)}`;
+  };
+
   // Count active filters
   const activeFilterCount = Object.keys(filters).filter(key => 
     key !== 'sort' && key !== 'order' && filters[key as keyof typeof filters]
@@ -452,7 +457,7 @@ const TechnologyListPage: React.FC = () => {
                           <td className="px-6 py-4">
                             <div className="flex items-center space-x-2">
                               <Link
-                                to={`/website/${result.id}`}
+                                to={getWebsiteUrl(result.url)}
                                 className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
                               >
                                 {result.url}
@@ -505,7 +510,7 @@ const TechnologyListPage: React.FC = () => {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <Link
-                            to={`/website/${result.id}`}
+                            to={getWebsiteUrl(result.url)}
                             className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors truncate flex-1 mr-2"
                           >
                             {result.url}

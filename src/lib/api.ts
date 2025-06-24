@@ -110,6 +110,18 @@ export async function getWebsiteDetails(id: string): Promise<WebsiteDetails> {
   return response.json();
 }
 
+export async function getWebsiteDetailsByDomain(domain: string): Promise<WebsiteDetails> {
+  const response = await fetch(`${API_BASE_URL}/website-by-domain/${encodeURIComponent(domain)}`, {
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch website details');
+  }
+
+  return response.json();
+}
+
 export async function getTechnologyDetails(id: string): Promise<TechnologyDetails> {
   const response = await fetch(`${API_BASE_URL}/technology/${id}`, {
     headers,
@@ -150,4 +162,9 @@ export function getTechnologyUrl(techName: string): string {
 export function getTechnologyNameFromUrl(slug: string): string {
   // This is a simple reverse mapping - in a real app you might want to store this mapping
   return slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+// Helper function to create website URL from domain
+export function getWebsiteUrl(domain: string): string {
+  return `/website/${encodeURIComponent(domain)}`;
 }

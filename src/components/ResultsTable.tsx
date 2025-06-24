@@ -47,6 +47,11 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
     return `/${techName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
   };
 
+  // Helper function to create website URL from domain
+  const getWebsiteUrl = (domain: string) => {
+    return `/website/${encodeURIComponent(domain)}`;
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
@@ -91,7 +96,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
                 <td className="px-6 py-4">
                   <div className="flex items-center space-x-2">
                     <Link
-                      to={`/website/${result.id}`}
+                      to={getWebsiteUrl(result.url)}
                       className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
                     >
                       {result.url}
@@ -164,7 +169,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
               {/* Website URL */}
               <div className="flex items-center justify-between">
                 <Link
-                  to={`/website/${result.id}`}
+                  to={getWebsiteUrl(result.url)}
                   className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors truncate flex-1 mr-2"
                 >
                   {result.url}

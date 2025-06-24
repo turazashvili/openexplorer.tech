@@ -47,7 +47,17 @@ class OpenTechExplorerPopup {
     });
 
     document.getElementById('viewDatabase').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://openexplorer.tech' });
+      if (this.currentTab && this.currentTab.url && this.currentTab.url.startsWith('http')) {
+        try {
+          const url = new URL(this.currentTab.url);
+          const domain = url.hostname.replace(/^www\./, '');
+          chrome.tabs.create({ url: `https://openexplorer.tech/website/${encodeURIComponent(domain)}` });
+        } catch (error) {
+          chrome.tabs.create({ url: 'https://openexplorer.tech' });
+        }
+      } else {
+        chrome.tabs.create({ url: 'https://openexplorer.tech' });
+      }
     });
 
     // Auto-analysis toggle
