@@ -38,6 +38,8 @@ Deno.serve(async (req: Request) => {
     const isSpa = searchParams.get('spa');
     const hasServiceWorker = searchParams.get('service_worker');
 
+    console.log('🔍 Search params:', { query, category, tech, isResponsive, isHttps, isSpa, hasServiceWorker });
+
     // Determine if query is likely a technology name vs URL
     const isLikelyTechnology = query && !query.includes('.') && !query.includes('/') && !query.includes('http');
     
@@ -63,7 +65,7 @@ Deno.serve(async (req: Request) => {
         `)
         .eq('website_technologies.technologies.category', category);
 
-      // Count query for category search
+      // Separate count query for category search
       countQueryBuilder = supabaseClient
         .from('websites')
         .select('id', { count: 'exact', head: true })
@@ -90,7 +92,7 @@ Deno.serve(async (req: Request) => {
         `)
         .ilike('website_technologies.technologies.name', `%${techToSearch}%`);
 
-      // Count query for technology search
+      // Separate count query for technology search
       countQueryBuilder = supabaseClient
         .from('websites')
         .select('id', { count: 'exact', head: true })
@@ -114,39 +116,36 @@ Deno.serve(async (req: Request) => {
           )
         `);
 
+      // Build count query
+      countQueryBuilder = supabaseClient
+        .from('websites')
+        .select('*', { count: 'exact', head: true });
+
       if (query) {
         queryBuilder = queryBuilder.ilike('url', `%${query}%`);
-        countQueryBuilder = supabaseClient
-          .from('websites')
-          .select('*', { count: 'exact', head: true })
-          .ilike('url', `%${query}%`);
-      } else {
-        countQueryBuilder = supabaseClient
-          .from('websites')
-          .select('*', { count: 'exact', head: true });
+        countQueryBuilder = countQueryBuilder.ilike('url', `%${query}%`);
       }
     }
 
-    // Apply metadata filters to both query and count
-    if (isResponsive !== null && isResponsive !== '') {
-      queryBuilder = queryBuilder.eq('metadata->>is_responsive', isResponsive);
-      if (countQueryBuilder) countQueryBuilder = countQueryBuilder.eq('metadata->>is_responsive', isResponsive);
-    }
+    // Apply metadata filters to both queries
+    const applyMetadataFilters = (builder: any) => {
+      if (isResponsive !== null && isResponsive !== '') {
+        builder = builder.eq('metadata->>is_responsive', isResponsive === 'true');
+      }
+      if (isHttps !== null && isHttps !== '') {
+        builder = builder.eq('metadata->>is_https', isHttps === 'true');
+      }
+      if (isSpa !== null && isSpa !== '') {
+        builder = builder.eq('metadata->>likely_spa', isSpa === 'true');
+      }
+      if (hasServiceWorker !== null && hasServiceWorker !== '') {
+        builder = builder.eq('metadata->>has_service_worker', hasServiceWorker === 'true');
+      }
+      return builder;
+    };
 
-    if (isHttps !== null && isHttps !== '') {
-      queryBuilder = queryBuilder.eq('metadata->>is_https', isHttps);
-      if (countQueryBuilder) countQueryBuilder = countQueryBuilder.eq('metadata->>is_https', isHttps);
-    }
-
-    if (isSpa !== null && isSpa !== '') {
-      queryBuilder = queryBuilder.eq('metadata->>likely_spa', isSpa);
-      if (countQueryBuilder) countQueryBuilder = countQueryBuilder.eq('metadata->>likely_spa', isSpa);
-    }
-
-    if (hasServiceWorker !== null && hasServiceWorker !== '') {
-      queryBuilder = queryBuilder.eq('metadata->>has_service_worker', hasServiceWorker);
-      if (countQueryBuilder) countQueryBuilder = countQueryBuilder.eq('metadata->>has_service_worker', hasServiceWorker);
-    }
+    queryBuilder = applyMetadataFilters(queryBuilder);
+    countQueryBuilder = applyMetadataFilters(countQueryBuilder);
 
     // Apply sorting
     if (sortBy === 'url') {
@@ -160,10 +159,10 @@ Deno.serve(async (req: Request) => {
     // Apply pagination
     queryBuilder = queryBuilder.range(offset, offset + limit - 1);
 
-    // Execute both queries
+    // Execute both queries in parallel
     const [{ data: websites, error }, { count: totalCount, error: countError }] = await Promise.all([
       queryBuilder,
-      countQueryBuilder || Promise.resolve({ count: 0, error: null })
+      countQueryBuilder
     ]);
 
     if (error) {
@@ -180,6 +179,8 @@ Deno.serve(async (req: Request) => {
     if (countError) {
       console.error('Count error:', countError);
     }
+
+    console.log(`📊 Found ${websites?.length || 0} websites, total count: ${totalCount || 0}`);
 
     // Transform the data to match frontend expectations
     const results = websites?.map(website => {
@@ -220,7 +221,13 @@ Deno.serve(async (req: Request) => {
           category,
           isLikelyTechnology,
           searchType: category ? 'category' : (isLikelyTechnology || tech ? 'technology' : 'url'),
-          totalFound: websites?.length || 0
+          totalFound: websites?.length || 0,
+          appliedFilters: {
+            responsive: isResponsive,
+            https: isHttps,
+            spa: isSpa,
+            service_worker: hasServiceWorker
+          }
         }
       }),
       { 

@@ -58,9 +58,13 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ onFiltersChange, currentF
   };
 
   const clearFilters = () => {
-    // Clear all filters by passing an empty object
-    onFiltersChange({});
-    setIsOpen(false); // Close the filter panel after clearing
+    // Only clear non-sorting filters, keep sort and order
+    const clearedFilters = {
+      sort: currentFilters.sort || 'last_scraped',
+      order: currentFilters.order || 'desc'
+    };
+    onFiltersChange(clearedFilters);
+    setIsOpen(false);
   };
 
   // Count only non-sorting filters for the badge

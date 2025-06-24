@@ -5,6 +5,7 @@ import SearchFilters from '../components/SearchFilters';
 import ResultsTable from '../components/ResultsTable';
 import Pagination from '../components/Pagination';
 import { searchWebsites, SearchParams, WebsiteResult } from '../lib/api';
+import { useRealtimeStats, useRealtimeSearch } from '../hooks/useRealtimeData';
 
 const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -16,6 +17,10 @@ const SearchPage: React.FC = () => {
     total: 0,
     totalPages: 0,
   });
+
+  // Real-time stats and search updates
+  const realtimeStats = useRealtimeStats();
+  const { lastUpdate } = useRealtimeSearch(searchParams);
 
   const currentQuery = searchParams.get('q') || '';
   const currentFilters = {
@@ -30,7 +35,7 @@ const SearchPage: React.FC = () => {
 
   useEffect(() => {
     performSearch();
-  }, [searchParams]);
+  }, [searchParams, lastUpdate]);
 
   const performSearch = async () => {
     setLoading(true);
@@ -48,40 +53,52 @@ const SearchPage: React.FC = () => {
         service_worker: searchParams.get('service_worker') || undefined,
       };
 
+      console.log('🔍 Performing search with params:', params);
+
       const response = await searchWebsites(params);
       setResults(response.results);
       setPagination(response.pagination);
+      
+      console.log('📊 Search response:', response);
     } catch (error) {
       console.error('Search error:', error);
       setResults([]);
+      setPagination(prev => ({ ...prev, total: 0, totalPages: 0 }));
     } finally {
       setLoading(false);
     }
   };
 
   const handleSearch = (query: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (query) {
-      newParams.set('q', query);
-    } else {
-      newParams.delete('q');
+    const newParams = new URLSearchParams();
+    if (query.trim()) {
+      newParams.set('q', query.trim());
     }
-    newParams.delete('page'); // Reset to first page
+    // Reset page when searching
     setSearchParams(newParams);
   };
 
   const handleFiltersChange = (filters: any) => {
     const newParams = new URLSearchParams(searchParams);
     
+    // Clear all filter params first
+    ['category', 'sort', 'order', 'responsive', 'https', 'spa', 'service_worker', 'page'].forEach(key => {
+      newParams.delete(key);
+    });
+    
+    // Add back the query if it exists
+    const currentQuery = searchParams.get('q');
+    if (currentQuery) {
+      newParams.set('q', currentQuery);
+    }
+    
+    // Add new filters
     Object.entries(filters).forEach(([key, value]) => {
-      if (value) {
+      if (value && value !== '') {
         newParams.set(key, value as string);
-      } else {
-        newParams.delete(key);
       }
     });
     
-    newParams.delete('page'); // Reset to first page
     setSearchParams(newParams);
   };
 
@@ -90,6 +107,11 @@ const SearchPage: React.FC = () => {
     newParams.set('page', page.toString());
     setSearchParams(newParams);
   };
+
+  // Count active filters (excluding sort/order)
+  const activeFilterCount = Object.keys(currentFilters).filter(key => 
+    key !== 'sort' && key !== 'order' && currentFilters[key as keyof typeof currentFilters]
+  ).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -111,14 +133,27 @@ const SearchPage: React.FC = () => {
           
           <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-500">
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>{pagination.total.toLocaleString()}+ websites analyzed</span>
+              <div className={`w-2 h-2 rounded-full ${realtimeStats.isConnected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+              <span>{realtimeStats.totalWebsites.toLocaleString()}+ websites analyzed</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>500+ technologies tracked</span>
+              <span>{realtimeStats.totalTechnologies.toLocaleString()}+ technologies tracked</span>
             </div>
+            {realtimeStats.recentlyAdded > 0 && (
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                <span>{realtimeStats.recentlyAdded} added today</span>
+              </div>
+            )}
           </div>
+          
+          {realtimeStats.isConnected && (
+            <div className="mt-4 text-xs text-green-600 flex items-center justify-center space-x-1">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+              <span>Live updates enabled</span>
+            </div>
+          )}
         </div>
       </section>
 
@@ -129,6 +164,11 @@ const SearchPage: React.FC = () => {
             <div className="flex-1 min-w-0">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                 {currentQuery ? 'Search Results' : 'Recent Discoveries'}
+                {activeFilterCount > 0 && (
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    ({activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} applied)
+                  </span>
+                )}
               </h2>
               <p className="text-gray-600 text-sm sm:text-base">
                 {loading 
