@@ -57,6 +57,36 @@ class TechLookupPopup {
         this.updateAutoAnalysisSetting(e.target.checked);
       });
     }
+
+    // Add debug button
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = '🔍 Debug Metadata';
+    debugBtn.className = 'w-full mt-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm';
+    debugBtn.addEventListener('click', () => {
+      this.debugMetadata();
+    });
+    
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    analyzeBtn.parentNode.insertBefore(debugBtn, analyzeBtn.nextSibling);
+  }
+
+  async debugMetadata() {
+    if (!this.currentTab || !this.currentTab.url.startsWith('http')) {
+      this.showError('Cannot debug this page. Please visit a website.');
+      return;
+    }
+
+    try {
+      // Inject debug script
+      await chrome.tabs.executeScript(this.currentTab.id, {
+        file: 'debug.js'
+      });
+      
+      this.showSuccess('Debug info logged to browser console! Open DevTools (F12) to see results.');
+    } catch (error) {
+      console.error('Debug injection failed:', error);
+      this.showError('Failed to inject debug script. Check console for details.');
+    }
   }
 
   setupSettingsUI() {
@@ -161,6 +191,9 @@ class TechLookupPopup {
       this.technologies = results.technologies || [];
       this.metadata = results.metadata || {};
       
+      console.log('📊 Analysis Results:', results);
+      console.log('🔧 Metadata collected:', this.metadata);
+      
       // Send data to Supabase
       await this.sendToSupabase(results);
       
@@ -220,6 +253,8 @@ class TechLookupPopup {
         scraped_at: new Date().toISOString()
       };
 
+      console.log('📤 Sending to Supabase:', payload);
+
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ingest`, {
         method: 'POST',
         headers: {
@@ -234,7 +269,10 @@ class TechLookupPopup {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      return response.json();
+      const result = await response.json();
+      console.log('✅ Supabase response:', result);
+      
+      return result;
     } catch (error) {
       console.error('Supabase error:', error);
       throw new Error(`Database error: ${error.message}`);
@@ -271,6 +309,15 @@ class TechLookupPopup {
     // Display metadata if available
     if (Object.keys(this.metadata).length > 0) {
       this.displayMetadata(container);
+    } else {
+      // Show debug info if no metadata
+      const debugSection = document.createElement('div');
+      debugSection.className = 'tech-section';
+      debugSection.innerHTML = `
+        <h3>⚠️ No Metadata Collected</h3>
+        <p class="text-sm text-gray-600">Click the "Debug Metadata" button to see what's happening.</p>
+      `;
+      container.appendChild(debugSection);
     }
 
     document.getElementById('results').style.display = 'block';
@@ -284,7 +331,7 @@ class TechLookupPopup {
     
     if (interestingMetadata.length > 0) {
       metadataSection.innerHTML = `
-        <h3>📊 Website Insights</h3>
+        <h3>📊 Website Insights (${Object.keys(this.metadata).length} total)</h3>
         <div class="metadata-items">
           ${interestingMetadata.map(item => `
             <div class="metadata-item">
@@ -293,6 +340,10 @@ class TechLookupPopup {
             </div>
           `).join('')}
         </div>
+        <details class="mt-3">
+          <summary class="text-sm text-gray-600 cursor-pointer">View all metadata</summary>
+          <pre class="text-xs bg-gray-100 p-2 mt-2 rounded overflow-auto max-h-32">${JSON.stringify(this.metadata, null, 2)}</pre>
+        </details>
       `;
       
       container.appendChild(metadataSection);
