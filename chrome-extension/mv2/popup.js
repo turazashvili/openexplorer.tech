@@ -57,6 +57,101 @@ class OpenTechExplorerPopup {
         this.updateAutoAnalysisSetting(e.target.checked);
       });
     }
+
+    // Add debug button
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = '🔍 Debug Metadata';
+    debugBtn.className = 'analyze-btn';
+    debugBtn.style.background = '#6b7280';
+    debugBtn.style.marginTop = '8px';
+    debugBtn.addEventListener('click', () => {
+      this.debugMetadata();
+    });
+    
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    analyzeBtn.parentNode.insertBefore(debugBtn, analyzeBtn.nextSibling);
+  }
+
+  async debugMetadata() {
+    if (!this.currentTab || !this.currentTab.url.startsWith('http')) {
+      this.showError('Cannot debug this page. Please visit a website.');
+      return;
+    }
+
+    try {
+      // Inject debug script
+      await chrome.tabs.executeScript(this.currentTab.id, {
+        file: 'debug.js'
+      });
+      
+      this.showSuccess('Debug info logged to browser console! Open DevTools (F12) to see results.');
+    } catch (error) {
+      console.error('Debug injection failed:', error);
+      this.showError('Failed to inject debug script. Check console for details.');
+    }
+  }
+
+  isBlockedUrl(url) {
+    if (!url || typeof url !== 'string') return true;
+    
+    const blockedPatterns = [
+      'localhost',
+      '127.0.0.1',
+      '0.0.0.0',
+      '::1',
+      '.local',
+      '.dev',
+      '.test',
+      'chrome://',
+      'chrome-extension://',
+      'file://',
+      'about:',
+      'moz://',
+      'edge://',
+      'opera://'
+    ];
+    
+    const lowerUrl = url.toLowerCase();
+    
+    for (const pattern of blockedPatterns) {
+      if (lowerUrl.includes(pattern)) {
+        return true;
+      }
+    }
+    
+    // Check for private IP ranges
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname;
+      
+      const ipRegex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+      const ipMatch = hostname.match(ipRegex);
+      if (ipMatch) {
+        const [, a, b, c, d] = ipMatch.map(Number);
+        
+        if (
+          (a === 10) ||
+          (a === 172 && b >= 16 && b <= 31) ||
+          (a === 192 && b === 168) ||
+          (a === 127) ||
+          (a === 169 && b === 254)
+        ) {
+          return true;
+        }
+      }
+      
+      // Check for development ports
+      const devPorts = [3000, 3001, 4200, 5000, 5173, 8000, 8080, 8888, 9000, 9001];
+      if (devPorts.includes(urlObj.port ? parseInt(urlObj.port) : 0)) {
+        return true;
+      }
+      
+    } catch (error) {
+      // Invalid URL, consider it blocked
+      return true;
+    }
+    
+    return false;
   }
 
   setupSettingsUI() {
@@ -120,7 +215,14 @@ class OpenTechExplorerPopup {
     if (this.currentTab) {
       try {
         const url = new URL(this.currentTab.url);
-        document.getElementById('currentUrl').textContent = url.hostname;
+        const urlElement = document.getElementById('currentUrl');
+        urlElement.textContent = url.hostname;
+        
+        // Show warning for blocked URLs
+        if (this.isBlockedUrl(this.currentTab.url)) {
+          urlElement.style.color = '#dc2626';
+          urlElement.title = 'This URL will not be sent to the database (development/local URL)';
+        }
       } catch (error) {
         document.getElementById('currentUrl').textContent = 'Invalid URL';
       }
@@ -153,6 +255,11 @@ class OpenTechExplorerPopup {
       return;
     }
 
+    // Show warning for blocked URLs but still allow manual analysis
+    if (this.isBlockedUrl(this.currentTab.url)) {
+      this.showInfo('⚠️ This appears to be a development URL - data will not be sent to the database.');
+    }
+
     this.showLoading();
     
     try {
@@ -161,12 +268,19 @@ class OpenTechExplorerPopup {
       this.technologies = results.technologies || [];
       this.metadata = results.metadata || {};
       
-      // Send data to Supabase
-      await this.sendToSupabase(results);
+      console.log('📊 Analysis Results:', results);
+      console.log('🔧 Metadata collected:', this.metadata);
       
-      // Display results
+      // Only send to database if URL is not blocked
+      if (!this.isBlockedUrl(this.currentTab.url)) {
+        await this.sendToSupabase(results);
+        this.showSuccess('Technologies detected and sent to database!');
+      } else {
+        this.showInfo('Technologies detected (not sent to database - development URL)');
+      }
+      
+      // Display results regardless
       this.displayResults();
-      this.showSuccess('Technologies detected and sent to database!');
       
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -220,6 +334,8 @@ class OpenTechExplorerPopup {
         scraped_at: new Date().toISOString()
       };
 
+      console.log('📤 Sending to Supabase:', payload);
+
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ingest`, {
         method: 'POST',
         headers: {
@@ -234,7 +350,10 @@ class OpenTechExplorerPopup {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      return response.json();
+      const result = await response.json();
+      console.log('✅ Supabase response:', result);
+      
+      return result;
     } catch (error) {
       console.error('Supabase error:', error);
       throw new Error(`Database error: ${error.message}`);
@@ -271,6 +390,15 @@ class OpenTechExplorerPopup {
     // Display metadata if available
     if (Object.keys(this.metadata).length > 0) {
       this.displayMetadata(container);
+    } else {
+      // Show debug info if no metadata
+      const debugSection = document.createElement('div');
+      debugSection.className = 'tech-section';
+      debugSection.innerHTML = `
+        <h3>⚠️ No Metadata Collected</h3>
+        <p style="font-size: 12px; color: #64748b;">Click the "Debug Metadata" button to see what's happening.</p>
+      `;
+      container.appendChild(debugSection);
     }
 
     document.getElementById('results').style.display = 'block';
@@ -284,7 +412,7 @@ class OpenTechExplorerPopup {
     
     if (interestingMetadata.length > 0) {
       metadataSection.innerHTML = `
-        <h3>📊 Website Insights</h3>
+        <h3>📊 Website Insights (${Object.keys(this.metadata).length} total)</h3>
         <div class="metadata-items">
           ${interestingMetadata.map(item => `
             <div class="metadata-item">
@@ -293,6 +421,10 @@ class OpenTechExplorerPopup {
             </div>
           `).join('')}
         </div>
+        <details style="margin-top: 12px;">
+          <summary style="font-size: 12px; color: #64748b; cursor: pointer;">View all metadata</summary>
+          <pre style="font-size: 10px; background: #f1f5f9; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 128px;">${JSON.stringify(this.metadata, null, 2)}</pre>
+        </details>
       `;
       
       container.appendChild(metadataSection);

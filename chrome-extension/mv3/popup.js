@@ -92,6 +92,69 @@ class OpenTechExplorerPopup {
     }
   }
 
+  isBlockedUrl(url) {
+    if (!url || typeof url !== 'string') return true;
+    
+    const blockedPatterns = [
+      'localhost',
+      '127.0.0.1',
+      '0.0.0.0',
+      '::1',
+      '.local',
+      '.dev',
+      '.test',
+      'chrome://',
+      'chrome-extension://',
+      'file://',
+      'about:',
+      'moz://',
+      'edge://',
+      'opera://'
+    ];
+    
+    const lowerUrl = url.toLowerCase();
+    
+    for (const pattern of blockedPatterns) {
+      if (lowerUrl.includes(pattern)) {
+        return true;
+      }
+    }
+    
+    // Check for private IP ranges
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname;
+      
+      const ipRegex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+      const ipMatch = hostname.match(ipRegex);
+      if (ipMatch) {
+        const [, a, b, c, d] = ipMatch.map(Number);
+        
+        if (
+          (a === 10) ||
+          (a === 172 && b >= 16 && b <= 31) ||
+          (a === 192 && b === 168) ||
+          (a === 127) ||
+          (a === 169 && b === 254)
+        ) {
+          return true;
+        }
+      }
+      
+      // Check for development ports
+      const devPorts = [3000, 3001, 4200, 5000, 5173, 8000, 8080, 8888, 9000, 9001];
+      if (devPorts.includes(urlObj.port ? parseInt(urlObj.port) : 0)) {
+        return true;
+      }
+      
+    } catch (error) {
+      // Invalid URL, consider it blocked
+      return true;
+    }
+    
+    return false;
+  }
+
   setupSettingsUI() {
     const autoToggle = document.getElementById('autoAnalysisToggle');
     if (autoToggle) {
@@ -153,7 +216,14 @@ class OpenTechExplorerPopup {
     if (this.currentTab) {
       try {
         const url = new URL(this.currentTab.url);
-        document.getElementById('currentUrl').textContent = url.hostname;
+        const urlElement = document.getElementById('currentUrl');
+        urlElement.textContent = url.hostname;
+        
+        // Show warning for blocked URLs
+        if (this.isBlockedUrl(this.currentTab.url)) {
+          urlElement.style.color = '#dc2626';
+          urlElement.title = 'This URL will not be sent to the database (development/local URL)';
+        }
       } catch (error) {
         document.getElementById('currentUrl').textContent = 'Invalid URL';
       }
@@ -186,6 +256,11 @@ class OpenTechExplorerPopup {
       return;
     }
 
+    // Show warning for blocked URLs but still allow manual analysis
+    if (this.isBlockedUrl(this.currentTab.url)) {
+      this.showInfo('⚠️ This appears to be a development URL - data will not be sent to the database.');
+    }
+
     this.showLoading();
     
     try {
@@ -197,12 +272,16 @@ class OpenTechExplorerPopup {
       console.log('📊 Analysis Results:', results);
       console.log('🔧 Metadata collected:', this.metadata);
       
-      // Send data to Supabase
-      await this.sendToSupabase(results);
+      // Only send to database if URL is not blocked
+      if (!this.isBlockedUrl(this.currentTab.url)) {
+        await this.sendToSupabase(results);
+        this.showSuccess('Technologies detected and sent to database!');
+      } else {
+        this.showInfo('Technologies detected (not sent to database - development URL)');
+      }
       
-      // Display results
+      // Display results regardless
       this.displayResults();
-      this.showSuccess('Technologies detected and sent to database!');
       
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -400,13 +479,6 @@ class OpenTechExplorerPopup {
       });
     }
     
-    if (this.metadata.external_script_count) {
-      items.push({
-        label: 'External Scripts',
-        value: this.metadata.external_script_count
-      });
-    }
-    
     // Optimization features
     if (this.metadata.uses_lazy_loading) {
       items.push({
@@ -419,35 +491,6 @@ class OpenTechExplorerPopup {
       items.push({
         label: 'Service Worker',
         value: '✅ Active'
-      });
-    }
-    
-    if (this.metadata.uses_google_fonts) {
-      items.push({
-        label: 'Google Fonts',
-        value: '✅ Used'
-      });
-    }
-    
-    // SEO and accessibility
-    if (this.metadata.has_open_graph) {
-      items.push({
-        label: 'Open Graph',
-        value: '✅ Present'
-      });
-    }
-    
-    if (this.metadata.has_twitter_cards) {
-      items.push({
-        label: 'Twitter Cards',
-        value: '✅ Present'
-      });
-    }
-    
-    if (this.metadata.meta_description_length) {
-      items.push({
-        label: 'Meta Description',
-        value: `${this.metadata.meta_description_length} chars`
       });
     }
     
