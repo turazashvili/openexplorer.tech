@@ -2,7 +2,7 @@
 const SUPABASE_URL = 'https://catnatrzpjqcwqnppgkf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhdG5hdHJ6cGpxY3dxbnBwZ2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3ODE2MTEsImV4cCI6MjA2NjM1NzYxMX0.RO4IJkuMNuLoE70UC2-b1JoGH2eXsFkED7HFpOlMofs';
 
-class TechLookupPopup {
+class OpenTechExplorerPopup {
   constructor() {
     this.currentTab = null;
     this.technologies = [];
@@ -47,7 +47,7 @@ class TechLookupPopup {
     });
 
     document.getElementById('viewDatabase').addEventListener('click', () => {
-      chrome.tabs.create({ url: window.location.origin });
+      chrome.tabs.create({ url: 'https://openexplorer.tech' });
     });
 
     // Auto-analysis toggle
@@ -346,13 +346,6 @@ class TechLookupPopup {
       });
     }
     
-    if (this.metadata.external_script_count) {
-      items.push({
-        label: 'External Scripts',
-        value: this.metadata.external_script_count
-      });
-    }
-    
     // Optimization features
     if (this.metadata.uses_lazy_loading) {
       items.push({
@@ -365,35 +358,6 @@ class TechLookupPopup {
       items.push({
         label: 'Service Worker',
         value: '✅ Active'
-      });
-    }
-    
-    if (this.metadata.uses_google_fonts) {
-      items.push({
-        label: 'Google Fonts',
-        value: '✅ Used'
-      });
-    }
-    
-    // SEO and accessibility
-    if (this.metadata.has_open_graph) {
-      items.push({
-        label: 'Open Graph',
-        value: '✅ Present'
-      });
-    }
-    
-    if (this.metadata.has_twitter_cards) {
-      items.push({
-        label: 'Twitter Cards',
-        value: '✅ Present'
-      });
-    }
-    
-    if (this.metadata.meta_description_length) {
-      items.push({
-        label: 'Meta Description',
-        value: `${this.metadata.meta_description_length} chars`
       });
     }
     
@@ -499,5 +463,5 @@ class TechLookupPopup {
 
 // Initialize popup when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-  new TechLookupPopup();
+  new OpenTechExplorerPopup();
 });

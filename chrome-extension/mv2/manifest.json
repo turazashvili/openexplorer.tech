@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
-  "name": "TechLookup Analyzer",
+  "name": "Open Tech Explorer",
   "version": "1.0.0",
-  "description": "Analyze website technologies and contribute to TechLookup database",
+  "description": "Discover website technologies and contribute to the Open Tech Explorer database. Analyze any website's tech stack instantly.",
   
   "permissions": [
     "activeTab",
@@ -14,7 +14,7 @@
   
   "browser_action": {
     "default_popup": "popup.html",
-    "default_title": "Analyze Website Technologies",
+    "default_title": "Open Tech Explorer - Analyze Website Technologies",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
@@ -43,5 +43,9 @@
   
   "web_accessible_resources": [
     "detector.js"
-  ]
+  ],
+  
+  "homepage_url": "https://openexplorer.tech",
+  
+  "author": "Open Tech Explorer Team"
 }

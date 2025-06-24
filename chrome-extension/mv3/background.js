@@ -1,5 +1,5 @@
 // Enhanced background script with full tab monitoring and auto-analysis for MV3
-class TechLookupBackground {
+class OpenTechExplorerBackground {
   constructor() {
     this.settings = { autoAnalysis: true };
     this.analysisCache = new Map();
@@ -27,7 +27,7 @@ class TechLookupBackground {
       return true; // Keep message channel open
     });
 
-    console.log('TechLookup Background: Full auto-analysis initialized (MV3)');
+    console.log('Open Tech Explorer Background: Full auto-analysis initialized (MV3)');
   }
 
   async loadSettings() {
@@ -89,7 +89,7 @@ class TechLookupBackground {
 
   async performBackgroundAnalysis(tabId, url, hostname) {
     try {
-      console.log(`TechLookup: Auto-analyzing ${hostname}...`);
+      console.log(`Open Tech Explorer: Auto-analyzing ${hostname}...`);
 
       // Inject content script and analyze
       const results = await this.injectAndAnalyze(tabId);
@@ -112,11 +112,11 @@ class TechLookupBackground {
           // Store results for popup
           this.storeTabResults(tabId, hostname, technologies, metadata);
 
-          console.log(`TechLookup: ✅ Auto-analyzed ${hostname} - found ${technologies.length} technologies`);
+          console.log(`Open Tech Explorer: ✅ Auto-analyzed ${hostname} - found ${technologies.length} technologies`);
         }
       }
     } catch (error) {
-      console.warn(`TechLookup: ❌ Auto-analysis failed for ${hostname}:`, error.message);
+      console.warn(`Open Tech Explorer: ❌ Auto-analysis failed for ${hostname}:`, error.message);
     } finally {
       this.pendingAnalysis.delete(tabId);
     }
@@ -163,7 +163,7 @@ class TechLookupBackground {
 
       return response.ok;
     } catch (error) {
-      console.error('TechLookup: Database error:', error);
+      console.error('Open Tech Explorer: Database error:', error);
       return false;
     }
   }
@@ -200,7 +200,7 @@ class TechLookupBackground {
       case 'updateSettings':
         this.settings = { ...this.settings, ...request.settings };
         chrome.storage.sync.set(request.settings, () => {
-          console.log('TechLookup: Settings updated:', this.settings);
+          console.log('Open Tech Explorer: Settings updated:', this.settings);
           sendResponse({ success: true });
         });
         break;
@@ -222,4 +222,4 @@ class TechLookupBackground {
 }
 
 // Initialize background service
-new TechLookupBackground();
+new OpenTechExplorerBackground();

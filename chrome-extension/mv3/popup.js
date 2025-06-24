@@ -2,7 +2,7 @@
 const SUPABASE_URL = 'https://catnatrzpjqcwqnppgkf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhdG5hdHJ6cGpxY3dxbnBwZ2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3ODE2MTEsImV4cCI6MjA2NjM1NzYxMX0.RO4IJkuMNuLoE70UC2-b1JoGH2eXsFkED7HFpOlMofs';
 
-class TechLookupPopup {
+class OpenTechExplorerPopup {
   constructor() {
     this.currentTab = null;
     this.technologies = [];
@@ -47,7 +47,7 @@ class TechLookupPopup {
     });
 
     document.getElementById('viewDatabase').addEventListener('click', () => {
-      chrome.tabs.create({ url: window.location.origin });
+      chrome.tabs.create({ url: 'https://openexplorer.tech' });
     });
 
     // Auto-analysis toggle
@@ -58,10 +58,12 @@ class TechLookupPopup {
       });
     }
 
-    // Add debug button
+    // Add debug button for MV3
     const debugBtn = document.createElement('button');
     debugBtn.textContent = '🔍 Debug Metadata';
-    debugBtn.className = 'w-full mt-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm';
+    debugBtn.className = 'analyze-btn';
+    debugBtn.style.background = '#6b7280';
+    debugBtn.style.marginTop = '8px';
     debugBtn.addEventListener('click', () => {
       this.debugMetadata();
     });
@@ -316,7 +318,7 @@ class TechLookupPopup {
       debugSection.className = 'tech-section';
       debugSection.innerHTML = `
         <h3>⚠️ No Metadata Collected</h3>
-        <p class="text-sm text-gray-600">Click the "Debug Metadata" button to see what's happening.</p>
+        <p style="font-size: 12px; color: #64748b;">Click the "Debug Metadata" button to see what's happening.</p>
       `;
       container.appendChild(debugSection);
     }
@@ -341,9 +343,9 @@ class TechLookupPopup {
             </div>
           `).join('')}
         </div>
-        <details class="mt-3">
-          <summary class="text-sm text-gray-600 cursor-pointer">View all metadata</summary>
-          <pre class="text-xs bg-gray-100 p-2 mt-2 rounded overflow-auto max-h-32">${JSON.stringify(this.metadata, null, 2)}</pre>
+        <details style="margin-top: 12px;">
+          <summary style="font-size: 12px; color: #64748b; cursor: pointer;">View all metadata</summary>
+          <pre style="font-size: 10px; background: #f1f5f9; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 128px;">${JSON.stringify(this.metadata, null, 2)}</pre>
         </details>
       `;
       
@@ -551,5 +553,5 @@ class TechLookupPopup {
 
 // Initialize popup when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-  new TechLookupPopup();
+  new OpenTechExplorerPopup();
 });

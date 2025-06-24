@@ -1,5 +1,5 @@
 // Enhanced background script with full tab monitoring and auto-analysis
-class TechLookupBackground {
+class OpenTechExplorerBackground {
   constructor() {
     this.settings = { autoAnalysis: true };
     this.analysisCache = new Map();
@@ -27,7 +27,7 @@ class TechLookupBackground {
       return true; // Keep message channel open
     });
 
-    console.log('TechLookup Background: Full auto-analysis initialized');
+    console.log('Open Tech Explorer Background: Full auto-analysis initialized');
   }
 
   async loadSettings() {
@@ -78,7 +78,7 @@ class TechLookupBackground {
 
     if (cached && (now - cached.timestamp) < oneHour) {
       // Use cached results
-      this.storeTabResults(tabId, hostname, cached.technologies);
+      this.storeTabResults(tabId, hostname, cached.technologies, cached.metadata);
       return;
     }
 
@@ -89,32 +89,34 @@ class TechLookupBackground {
 
   async performBackgroundAnalysis(tabId, url, hostname) {
     try {
-      console.log(`TechLookup: Auto-analyzing ${hostname}...`);
+      console.log(`Open Tech Explorer: Auto-analyzing ${hostname}...`);
 
       // Inject content script and analyze
       const results = await this.injectAndAnalyze(tabId);
       
       if (results && results.success && results.technologies) {
         const technologies = results.technologies;
+        const metadata = results.metadata || {};
         
         // Send to database
-        const dbSuccess = await this.sendToDatabase(hostname, technologies);
+        const dbSuccess = await this.sendToDatabase(hostname, technologies, metadata);
         
         if (dbSuccess) {
           // Cache the results
           this.analysisCache.set(hostname, {
             technologies,
+            metadata,
             timestamp: Date.now()
           });
 
           // Store results for popup
-          this.storeTabResults(tabId, hostname, technologies);
+          this.storeTabResults(tabId, hostname, technologies, metadata);
 
-          console.log(`TechLookup: ✅ Auto-analyzed ${hostname} - found ${technologies.length} technologies`);
+          console.log(`Open Tech Explorer: ✅ Auto-analyzed ${hostname} - found ${technologies.length} technologies`);
         }
       }
     } catch (error) {
-      console.warn(`TechLookup: ❌ Auto-analysis failed for ${hostname}:`, error.message);
+      console.warn(`Open Tech Explorer: ❌ Auto-analysis failed for ${hostname}:`, error.message);
     } finally {
       this.pendingAnalysis.delete(tabId);
     }
@@ -138,7 +140,7 @@ class TechLookupBackground {
     });
   }
 
-  async sendToDatabase(hostname, technologies) {
+  async sendToDatabase(hostname, technologies, metadata = {}) {
     const SUPABASE_URL = 'https://catnatrzpjqcwqnppgkf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhdG5hdHJ6cGpxY3dxbnBwZ2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3ODE2MTEsImV4cCI6MjA2NjM1NzYxMX0.RO4IJkuMNuLoE70UC2-b1JoGH2eXsFkED7HFpOlMofs';
 
@@ -146,6 +148,7 @@ class TechLookupBackground {
       const payload = {
         url: hostname,
         technologies: technologies,
+        metadata: metadata,
         scraped_at: new Date().toISOString()
       };
 
@@ -160,16 +163,17 @@ class TechLookupBackground {
 
       return response.ok;
     } catch (error) {
-      console.error('TechLookup: Database error:', error);
+      console.error('Open Tech Explorer: Database error:', error);
       return false;
     }
   }
 
-  storeTabResults(tabId, hostname, technologies) {
+  storeTabResults(tabId, hostname, technologies, metadata = {}) {
     chrome.storage.local.set({ 
       [`results_${tabId}`]: {
         hostname,
         technologies,
+        metadata,
         timestamp: new Date().toISOString(),
         source: 'background'
       }
@@ -196,7 +200,7 @@ class TechLookupBackground {
       case 'updateSettings':
         this.settings = { ...this.settings, ...request.settings };
         chrome.storage.sync.set(request.settings, () => {
-          console.log('TechLookup: Settings updated:', this.settings);
+          console.log('Open Tech Explorer: Settings updated:', this.settings);
           sendResponse({ success: true });
         });
         break;
@@ -218,4 +222,4 @@ class TechLookupBackground {
 }
 
 // Initialize background service
-new TechLookupBackground();
+new OpenTechExplorerBackground();
