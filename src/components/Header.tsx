@@ -11,18 +11,6 @@ const Header: React.FC = () => {
             <Database className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
             <span className="text-lg sm:text-xl font-bold text-gray-900">Open Tech Explorer</span>
           </Link>
-          
-          <nav className="hidden md:flex space-x-6 lg:space-x-8">
-            <a href="#features" className="text-gray-600 hover:text-gray-900 font-medium transition-colors text-sm lg:text-base">
-              Features
-            </a>
-            <a href="#docs" className="text-gray-600 hover:text-gray-900 font-medium transition-colors text-sm lg:text-base">
-              Docs
-            </a>
-            <a href="#contact" className="text-gray-600 hover:text-gray-900 font-medium transition-colors text-sm lg:text-base">
-              Contact
-            </a>
-          </nav>
         </div>
       </div>
     </header>
