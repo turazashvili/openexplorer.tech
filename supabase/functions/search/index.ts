@@ -160,7 +160,7 @@ Deno.serve(async (req: Request) => {
 
       // ALSO search for websites that use technologies matching the query
       // This is done in a separate query and then combined
-      const techQueryBuilder = supabaseClient
+      let techQueryBuilder = supabaseClient
         .from('websites')
         .select(`
           id,
