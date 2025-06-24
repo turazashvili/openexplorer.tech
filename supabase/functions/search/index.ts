@@ -51,14 +51,14 @@ Deno.serve(async (req: Request) => {
       // Explicit technology search - this is the key fix for technology pages
       console.log('🎯 Technology-specific search for:', tech);
       
-      // First, find the exact technology by name (case-insensitive)
+      // First, find the exact technology by name (case-insensitive) - using .limit(1) instead of .single()
       const { data: technologyData, error: techError } = await supabaseClient
         .from('technologies')
         .select('id, name, category')
         .ilike('name', tech)
-        .single();
+        .limit(1);
 
-      if (techError || !technologyData) {
+      if (techError || !technologyData || technologyData.length === 0) {
         console.log('❌ Technology not found:', tech);
         return new Response(
           JSON.stringify({
@@ -71,7 +71,8 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      console.log('✅ Found technology:', technologyData);
+      const technology = technologyData[0];
+      console.log('✅ Found technology:', technology);
 
       // Now search for websites using this specific technology
       queryBuilder = supabaseClient
@@ -89,13 +90,13 @@ Deno.serve(async (req: Request) => {
             )
           )
         `)
-        .eq('website_technologies.technology_id', technologyData.id);
+        .eq('website_technologies.technology_id', technology.id);
 
       // Count query for technology search
       countQueryBuilder = supabaseClient
         .from('websites')
         .select('id', { count: 'exact', head: true })
-        .eq('website_technologies.technology_id', technologyData.id);
+        .eq('website_technologies.technology_id', technology.id);
 
     } else if (category) {
       // Category-based search

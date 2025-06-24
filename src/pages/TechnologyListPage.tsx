@@ -62,42 +62,41 @@ const TechnologyListPage: React.FC = () => {
 
       console.log('🔍 Looking for technology:', techNameFromUrl);
 
-      // First, get technology info from database
-      const { data: techData } = await supabase
+      // First, find the exact technology by name (case-insensitive) - using .limit(1) instead of .single()
+      const { data: techData, error: techError } = await supabase
         .from('technologies')
         .select('name, category')
         .ilike('name', techNameFromUrl)
-        .single();
+        .limit(1);
 
-      if (!techData) {
-        // Try alternative matching patterns
-        const { data: altTechData } = await supabase
+      if (techError || !techData || techData.length === 0) {
+        // Try alternative matching patterns - also using .limit(1) instead of .single()
+        const { data: altTechData, error: altTechError } = await supabase
           .from('technologies')
           .select('name, category')
           .ilike('name', `%${techNameFromUrl}%`)
-          .limit(1)
-          .single();
+          .limit(1);
 
-        if (!altTechData) {
+        if (altTechError || !altTechData || altTechData.length === 0) {
           setError(`Technology "${techNameFromUrl}" not found`);
           setLoading(false);
           return;
         }
         
         setTechnologyInfo({
-          name: altTechData.name,
-          category: altTechData.category,
+          name: altTechData[0].name,
+          category: altTechData[0].category,
           totalCount: 0
         });
       } else {
         setTechnologyInfo({
-          name: techData.name,
-          category: techData.category,
+          name: techData[0].name,
+          category: techData[0].category,
           totalCount: 0
         });
       }
 
-      const actualTechName = techData?.name || altTechData?.name;
+      const actualTechName = techData && techData.length > 0 ? techData[0].name : altTechData?.[0]?.name;
       console.log('✅ Found technology:', actualTechName);
 
       // Search for websites using this technology
