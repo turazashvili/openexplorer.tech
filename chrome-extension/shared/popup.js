@@ -1,4 +1,4 @@
-// Configuration
+// Enhanced popup with background analysis integration
 const SUPABASE_URL = 'https://catnatrzpjqcwqnppgkf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhdG5hdHJ6cGpxY3dxbnBwZ2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3ODE2MTEsImV4cCI6MjA2NjM1NzYxMX0.RO4IJkuMNuLoE70UC2-b1JoGH2eXsFkED7HFpOlMofs';
 
@@ -6,16 +6,19 @@ class TechLookupPopup {
   constructor() {
     this.currentTab = null;
     this.technologies = [];
+    this.settings = { autoAnalysis: true };
     this.init();
   }
 
   async init() {
     await this.getCurrentTab();
+    await this.loadSettings();
     this.setupEventListeners();
     this.displayCurrentUrl();
+    this.setupSettingsUI();
     
-    // Auto-analyze when popup opens
-    await this.analyzeTechnologies();
+    // Check for existing background analysis first
+    await this.checkBackgroundResults();
   }
 
   async getCurrentTab() {
@@ -27,14 +30,78 @@ class TechLookupPopup {
     });
   }
 
+  async loadSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get(['autoAnalysis'], (result) => {
+        this.settings = {
+          autoAnalysis: result.autoAnalysis !== false // Default to true
+        };
+        resolve();
+      });
+    });
+  }
+
   setupEventListeners() {
     document.getElementById('analyzeBtn').addEventListener('click', () => {
       this.analyzeTechnologies();
     });
 
     document.getElementById('viewDatabase').addEventListener('click', () => {
-      chrome.tabs.create({ url: window.location.origin }); // Opens your TechLookup website
+      chrome.tabs.create({ url: window.location.origin });
     });
+
+    // Auto-analysis toggle
+    const autoToggle = document.getElementById('autoAnalysisToggle');
+    if (autoToggle) {
+      autoToggle.addEventListener('change', (e) => {
+        this.updateAutoAnalysisSetting(e.target.checked);
+      });
+    }
+  }
+
+  setupSettingsUI() {
+    const autoToggle = document.getElementById('autoAnalysisToggle');
+    if (autoToggle) {
+      autoToggle.checked = this.settings.autoAnalysis;
+    }
+
+    // Update status text based on setting
+    const statusText = document.querySelector('.auto-note');
+    if (statusText) {
+      if (this.settings.autoAnalysis) {
+        statusText.textContent = '✨ Auto-analysis enabled - scanning websites automatically';
+        statusText.style.background = '#f0f9ff';
+        statusText.style.borderColor = '#bae6fd';
+        statusText.style.color = '#0369a1';
+      } else {
+        statusText.textContent = '⏸️ Auto-analysis disabled - click to analyze manually';
+        statusText.style.background = '#fef3c7';
+        statusText.style.borderColor = '#fcd34d';
+        statusText.style.color = '#92400e';
+      }
+    }
+  }
+
+  async checkBackgroundResults() {
+    if (!this.currentTab) return;
+
+    // Check if background analysis already found results
+    chrome.runtime.sendMessage(
+      { action: 'getStoredResults', tabId: this.currentTab.id },
+      (response) => {
+        if (response && response.technologies) {
+          this.technologies = response.technologies;
+          this.displayResults();
+          this.showSuccess(`Found ${response.technologies.length} technologies (auto-analyzed)`);
+          
+          // Update button text
+          document.getElementById('analyzeBtn').textContent = '🔍 Re-analyze';
+        } else {
+          // No background results, perform manual analysis
+          this.analyzeTechnologies();
+        }
+      }
+    );
   }
 
   displayCurrentUrl() {
@@ -46,6 +113,17 @@ class TechLookupPopup {
         document.getElementById('currentUrl').textContent = 'Invalid URL';
       }
     }
+  }
+
+  async updateAutoAnalysisSetting(enabled) {
+    this.settings.autoAnalysis = enabled;
+    
+    chrome.runtime.sendMessage({
+      action: 'updateSettings',
+      settings: this.settings
+    }, () => {
+      this.setupSettingsUI();
+    });
   }
 
   async analyzeTechnologies() {
@@ -89,7 +167,6 @@ class TechLookupPopup {
 
   async injectAnalyzer() {
     return new Promise((resolve, reject) => {
-      // Add timeout to prevent hanging
       const timeout = setTimeout(() => {
         reject(new Error('Analysis timeout - page may not be ready'));
       }, 10000);
