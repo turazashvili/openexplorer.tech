@@ -123,33 +123,39 @@ Deno.serve(async (req: Request) => {
         .select('*', { count: 'exact', head: true });
 
       if (cleanQuery) {
-        // Try multiple URL matching strategies
-        let urlConditions = [];
+        console.log('🔍 Searching for URL patterns with query:', cleanQuery);
         
-        // 1. Direct URL match (existing)
-        urlConditions.push(`url.ilike.%${cleanQuery}%`);
+        // Build multiple URL search patterns
+        const urlPatterns = [];
+        
+        // 1. Direct URL match
+        urlPatterns.push(`url.ilike.%${cleanQuery}%`);
         
         // 2. If query looks like a domain name, try with common TLDs
         if (!cleanQuery.includes('.') && cleanQuery.length > 2) {
-          const commonTLDs = ['com', 'org', 'net', 'io', 'co', 'ai'];
+          const commonTLDs = ['com', 'org', 'net', 'io', 'co', 'ai', 'app'];
           for (const tld of commonTLDs) {
-            urlConditions.push(`url.ilike.%${cleanQuery}.${tld}%`);
+            urlPatterns.push(`url.ilike.%${cleanQuery}.${tld}%`);
+            urlPatterns.push(`url.ilike.${cleanQuery}.${tld}`); // Exact match
           }
         }
         
         // 3. If query has a TLD, try without www
         if (cleanQuery.includes('.')) {
           const withoutWww = cleanQuery.replace(/^www\./, '');
-          urlConditions.push(`url.ilike.%${withoutWww}%`);
+          urlPatterns.push(`url.ilike.%${withoutWww}%`);
+          urlPatterns.push(`url.eq.${withoutWww}`); // Exact match
         }
         
         // 4. Try as subdomain
         if (!cleanQuery.includes('.')) {
-          urlConditions.push(`url.ilike.${cleanQuery}.%`);
+          urlPatterns.push(`url.ilike.${cleanQuery}.%`);
         }
 
+        console.log('🔍 URL patterns to try:', urlPatterns);
+
         // Apply URL conditions with OR logic
-        const urlFilter = `or(${urlConditions.join(',')})`;
+        const urlFilter = `or(${urlPatterns.join(',')})`;
         queryBuilder = queryBuilder.or(urlFilter);
         countQueryBuilder = countQueryBuilder.or(urlFilter);
       }
@@ -274,6 +280,28 @@ Deno.serve(async (req: Request) => {
           suggestion: `Search for websites using ${tech.name}`
         }));
       }
+    }
+
+    // If still no results and it's a URL search, let's check what websites we actually have
+    if (results.length === 0 && cleanQuery && isLikelyURL) {
+      console.log('🔍 No results found, checking available websites...');
+      
+      // Get a sample of websites to see what's in the database
+      const { data: sampleWebsites } = await supabaseClient
+        .from('websites')
+        .select('url')
+        .limit(10);
+      
+      console.log('📋 Sample websites in database:', sampleWebsites?.map(w => w.url));
+      
+      // Check if there are any websites that contain the search term
+      const { data: containingWebsites } = await supabaseClient
+        .from('websites')
+        .select('url')
+        .ilike('url', `%${cleanQuery}%`)
+        .limit(5);
+      
+      console.log('🎯 Websites containing search term:', containingWebsites?.map(w => w.url));
     }
 
     return new Response(
