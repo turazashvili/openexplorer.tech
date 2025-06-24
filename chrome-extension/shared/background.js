@@ -1,12 +1,16 @@
-// Enhanced background script with tab monitoring
+// Enhanced background script with full tab monitoring and auto-analysis
 class TechLookupBackground {
   constructor() {
-    this.analyzedTabs = new Set();
-    this.pendingAnalysis = new Map();
+    this.settings = { autoAnalysis: true };
+    this.analysisCache = new Map();
+    this.pendingAnalysis = new Set();
     this.init();
   }
 
-  init() {
+  async init() {
+    // Load settings
+    await this.loadSettings();
+
     // Listen for tab updates (navigation)
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       this.handleTabUpdate(tabId, changeInfo, tab);
@@ -20,20 +24,40 @@ class TechLookupBackground {
     // Listen for messages from popup/content scripts
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       this.handleMessage(request, sender, sendResponse);
+      return true; // Keep message channel open
     });
 
-    console.log('TechLookup Background: Initialized');
+    console.log('TechLookup Background: Full auto-analysis initialized');
+  }
+
+  async loadSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get(['autoAnalysis'], (result) => {
+        this.settings = {
+          autoAnalysis: result.autoAnalysis !== false // Default to true
+        };
+        resolve();
+      });
+    });
   }
 
   handleTabUpdate(tabId, changeInfo, tab) {
-    // Only process when page is completely loaded
-    if (changeInfo.status === 'complete' && tab.url && tab.url.startsWith('http')) {
-      // Check if we should auto-analyze this tab
-      this.scheduleAnalysis(tabId, tab.url);
+    // Only process when page is completely loaded and auto-analysis is enabled
+    if (changeInfo.status === 'complete' && 
+        tab.url && 
+        tab.url.startsWith('http') && 
+        this.settings.autoAnalysis) {
+      
+      // Schedule analysis with delay to ensure page is ready
+      setTimeout(() => {
+        this.scheduleAnalysis(tabId, tab.url);
+      }, 2000);
     }
   }
 
   handleTabActivation(activeInfo) {
+    if (!this.settings.autoAnalysis) return;
+
     // When user switches to a tab, check if it needs analysis
     chrome.tabs.get(activeInfo.tabId, (tab) => {
       if (tab.url && tab.url.startsWith('http')) {
@@ -44,62 +68,69 @@ class TechLookupBackground {
 
   scheduleAnalysis(tabId, url) {
     const hostname = this.extractHostname(url);
-    if (!hostname) return;
+    if (!hostname || this.pendingAnalysis.has(tabId)) return;
 
-    // Check if we've already analyzed this hostname recently
-    const cacheKey = `analyzed_${hostname}`;
-    chrome.storage.local.get([cacheKey], (result) => {
-      const lastAnalyzed = result[cacheKey];
-      const now = Date.now();
-      const oneHour = 60 * 60 * 1000; // 1 hour cache
+    // Check cache - don't re-analyze within 1 hour
+    const cacheKey = hostname;
+    const cached = this.analysisCache.get(cacheKey);
+    const now = Date.now();
+    const oneHour = 60 * 60 * 1000;
 
-      if (!lastAnalyzed || (now - lastAnalyzed) > oneHour) {
-        // Schedule analysis with a small delay to ensure page is ready
-        setTimeout(() => {
-          this.performBackgroundAnalysis(tabId, url, hostname);
-        }, 2000);
-      }
-    });
+    if (cached && (now - cached.timestamp) < oneHour) {
+      // Use cached results
+      this.storeTabResults(tabId, hostname, cached.technologies);
+      return;
+    }
+
+    // Mark as pending and perform analysis
+    this.pendingAnalysis.add(tabId);
+    this.performBackgroundAnalysis(tabId, url, hostname);
   }
 
   async performBackgroundAnalysis(tabId, url, hostname) {
     try {
-      // Check if user has enabled auto-analysis
-      const settings = await this.getSettings();
-      if (!settings.autoAnalysis) return;
+      console.log(`TechLookup: Auto-analyzing ${hostname}...`);
 
       // Inject content script and analyze
       const results = await this.injectAndAnalyze(tabId);
       
-      if (results && results.technologies && results.technologies.length > 0) {
+      if (results && results.success && results.technologies) {
+        const technologies = results.technologies;
+        
         // Send to database
-        await this.sendToDatabase(hostname, results.technologies);
+        const dbSuccess = await this.sendToDatabase(hostname, technologies);
         
-        // Cache the analysis
-        const cacheKey = `analyzed_${hostname}`;
-        chrome.storage.local.set({ [cacheKey]: Date.now() });
-        
-        // Store results for popup
-        chrome.storage.local.set({ 
-          [`results_${tabId}`]: {
-            hostname,
-            technologies: results.technologies,
-            timestamp: new Date().toISOString()
-          }
-        });
+        if (dbSuccess) {
+          // Cache the results
+          this.analysisCache.set(hostname, {
+            technologies,
+            timestamp: Date.now()
+          });
 
-        console.log(`TechLookup: Auto-analyzed ${hostname} - found ${results.technologies.length} technologies`);
+          // Store results for popup
+          this.storeTabResults(tabId, hostname, technologies);
+
+          console.log(`TechLookup: ✅ Auto-analyzed ${hostname} - found ${technologies.length} technologies`);
+        }
       }
     } catch (error) {
-      console.warn(`TechLookup: Auto-analysis failed for ${hostname}:`, error);
+      console.warn(`TechLookup: ❌ Auto-analysis failed for ${hostname}:`, error.message);
+    } finally {
+      this.pendingAnalysis.delete(tabId);
     }
   }
 
   async injectAndAnalyze(tabId) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Analysis timeout'));
+      }, 8000);
+
       chrome.tabs.sendMessage(tabId, { action: 'analyze' }, (response) => {
-        if (chrome.runtime.lastError || !response) {
-          resolve(null);
+        clearTimeout(timeout);
+        
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
         } else {
           resolve(response);
         }
@@ -129,18 +160,19 @@ class TechLookupBackground {
 
       return response.ok;
     } catch (error) {
-      console.error('Database error:', error);
+      console.error('TechLookup: Database error:', error);
       return false;
     }
   }
 
-  async getSettings() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(['autoAnalysis'], (result) => {
-        resolve({
-          autoAnalysis: result.autoAnalysis !== false // Default to true
-        });
-      });
+  storeTabResults(tabId, hostname, technologies) {
+    chrome.storage.local.set({ 
+      [`results_${tabId}`]: {
+        hostname,
+        technologies,
+        timestamp: new Date().toISOString(),
+        source: 'background'
+      }
     });
   }
 
@@ -153,19 +185,34 @@ class TechLookupBackground {
   }
 
   handleMessage(request, sender, sendResponse) {
-    if (request.action === 'getStoredResults') {
-      const tabId = request.tabId;
-      chrome.storage.local.get([`results_${tabId}`], (result) => {
-        sendResponse(result[`results_${tabId}`] || null);
-      });
-      return true;
-    }
+    switch (request.action) {
+      case 'getStoredResults':
+        const tabId = request.tabId;
+        chrome.storage.local.get([`results_${tabId}`], (result) => {
+          sendResponse(result[`results_${tabId}`] || null);
+        });
+        break;
 
-    if (request.action === 'updateSettings') {
-      chrome.storage.sync.set(request.settings, () => {
+      case 'updateSettings':
+        this.settings = { ...this.settings, ...request.settings };
+        chrome.storage.sync.set(request.settings, () => {
+          console.log('TechLookup: Settings updated:', this.settings);
+          sendResponse({ success: true });
+        });
+        break;
+
+      case 'getSettings':
+        sendResponse(this.settings);
+        break;
+
+      case 'clearCache':
+        this.analysisCache.clear();
+        chrome.storage.local.clear();
         sendResponse({ success: true });
-      });
-      return true;
+        break;
+
+      default:
+        sendResponse({ error: 'Unknown action' });
     }
   }
 }

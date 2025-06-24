@@ -1,4 +1,4 @@
-// Enhanced popup with background analysis integration
+// Enhanced popup with full background analysis integration
 const SUPABASE_URL = 'https://catnatrzpjqcwqnppgkf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhdG5hdHJ6cGpxY3dxbnBwZ2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3ODE2MTEsImV4cCI6MjA2NjM1NzYxMX0.RO4IJkuMNuLoE70UC2-b1JoGH2eXsFkED7HFpOlMofs';
 
@@ -7,6 +7,7 @@ class TechLookupPopup {
     this.currentTab = null;
     this.technologies = [];
     this.settings = { autoAnalysis: true };
+    this.backgroundResults = null;
     this.init();
   }
 
@@ -17,7 +18,7 @@ class TechLookupPopup {
     this.displayCurrentUrl();
     this.setupSettingsUI();
     
-    // Check for existing background analysis first
+    // Check for background analysis results first
     await this.checkBackgroundResults();
   }
 
@@ -32,10 +33,8 @@ class TechLookupPopup {
 
   async loadSettings() {
     return new Promise((resolve) => {
-      chrome.storage.sync.get(['autoAnalysis'], (result) => {
-        this.settings = {
-          autoAnalysis: result.autoAnalysis !== false // Default to true
-        };
+      chrome.runtime.sendMessage({ action: 'getSettings' }, (response) => {
+        this.settings = response || { autoAnalysis: true };
         resolve();
       });
     });
@@ -90,14 +89,25 @@ class TechLookupPopup {
       { action: 'getStoredResults', tabId: this.currentTab.id },
       (response) => {
         if (response && response.technologies) {
+          this.backgroundResults = response;
           this.technologies = response.technologies;
           this.displayResults();
-          this.showSuccess(`Found ${response.technologies.length} technologies (auto-analyzed)`);
+          
+          const source = response.source === 'background' ? 'auto-analyzed' : 'analyzed';
+          this.showSuccess(`Found ${response.technologies.length} technologies (${source})`);
           
           // Update button text
           document.getElementById('analyzeBtn').textContent = '🔍 Re-analyze';
+        } else if (this.settings.autoAnalysis) {
+          // No background results yet, show waiting message
+          this.showInfo('Auto-analyzing in background...');
+          
+          // Check again in a few seconds
+          setTimeout(() => {
+            this.checkBackgroundResults();
+          }, 3000);
         } else {
-          // No background results, perform manual analysis
+          // Auto-analysis disabled, perform manual analysis
           this.analyzeTechnologies();
         }
       }
@@ -123,6 +133,14 @@ class TechLookupPopup {
       settings: this.settings
     }, () => {
       this.setupSettingsUI();
+      
+      if (enabled && !this.backgroundResults) {
+        // If enabling auto-analysis and no results yet, trigger analysis
+        this.showInfo('Auto-analysis enabled - analyzing current page...');
+        setTimeout(() => {
+          this.checkBackgroundResults();
+        }, 1000);
+      }
     });
   }
 
@@ -306,6 +324,15 @@ class TechLookupPopup {
     status.className = 'status error';
     status.textContent = message;
     document.getElementById('results').style.display = 'block';
+  }
+
+  showInfo(message) {
+    const status = document.getElementById('status');
+    status.className = 'status';
+    status.style.background = '#f0f9ff';
+    status.style.color = '#0369a1';
+    status.style.border = '1px solid #bae6fd';
+    status.textContent = message;
   }
 }
 
