@@ -1,0 +1,144 @@
+import React, { useState, useEffect } from 'react';
+import { Filter, X } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+
+interface SearchFiltersProps {
+  onFiltersChange: (filters: {
+    category?: string;
+    sort?: string;
+    order?: string;
+  }) => void;
+  currentFilters: {
+    category?: string;
+    sort?: string;
+    order?: string;
+  };
+}
+
+const SearchFilters: React.FC<SearchFiltersProps> = ({ onFiltersChange, currentFilters }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const { data } = await supabase
+        .from('technologies')
+        .select('category')
+        .not('category', 'is', null);
+      
+      if (data) {
+        const uniqueCategories = [...new Set(data.map(item => item.category))];
+        setCategories(uniqueCategories.sort());
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  const handleFilterChange = (key: string, value: string) => {
+    const newFilters = { ...currentFilters };
+    if (value === '') {
+      delete newFilters[key as keyof typeof newFilters];
+    } else {
+      newFilters[key as keyof typeof newFilters] = value;
+    }
+    onFiltersChange(newFilters);
+  };
+
+  const clearFilters = () => {
+    onFiltersChange({});
+  };
+
+  const hasActiveFilters = Object.keys(currentFilters).length > 0;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors ${
+          hasActiveFilters 
+            ? 'border-blue-500 bg-blue-50 text-blue-700' 
+            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+        }`}
+      >
+        <Filter className="h-4 w-4" />
+        <span>Filters</span>
+        {hasActiveFilters && (
+          <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-0.5">
+            {Object.keys(currentFilters).length}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+          <div className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">Filters</h3>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category
+              </label>
+              <select
+                value={currentFilters.category || ''}
+                onChange={(e) => handleFilterChange('category', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">All categories</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Sort by
+              </label>
+              <select
+                value={currentFilters.sort || 'last_scraped'}
+                onChange={(e) => handleFilterChange('sort', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="last_scraped">Last scraped</option>
+                <option value="url">Website URL</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Order
+              </label>
+              <select
+                value={currentFilters.order || 'desc'}
+                onChange={(e) => handleFilterChange('order', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="desc">Newest first</option>
+                <option value="asc">Oldest first</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SearchFilters;
