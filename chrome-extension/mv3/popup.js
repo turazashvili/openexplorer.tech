@@ -1,6 +1,6 @@
 // Configuration
-const SUPABASE_URL = 'https://catnatrzpjqcwqnppgkf.supabase.co'; // Replace with your actual Supabase URL
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhdG5hdHJ6cGpxY3dxbnBwZ2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3ODE2MTEsImV4cCI6MjA2NjM1NzYxMX0.RO4IJkuMNuLoE70UC2-b1JoGH2eXsFkED7HFpOlMofs'; // Replace with your actual anon key
+const SUPABASE_URL = 'https://catnatrzpjqcwqnppgkf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhdG5hdHJ6cGpxY3dxbnBwZ2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3ODE2MTEsImV4cCI6MjA2NjM1NzYxMX0.RO4IJkuMNuLoE70UC2-b1JoGH2eXsFkED7HFpOlMofs';
 
 class TechLookupPopup {
   constructor() {
@@ -13,6 +13,9 @@ class TechLookupPopup {
     await this.getCurrentTab();
     this.setupEventListeners();
     this.displayCurrentUrl();
+    
+    // Auto-analyze when popup opens
+    await this.analyzeTechnologies();
   }
 
   async getCurrentTab() {
@@ -30,18 +33,28 @@ class TechLookupPopup {
     });
 
     document.getElementById('viewDatabase').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://your-techlookup-domain.com' }); // Replace with your domain
+      chrome.tabs.create({ url: window.location.origin }); // Opens your TechLookup website
     });
   }
 
   displayCurrentUrl() {
     if (this.currentTab) {
-      const url = new URL(this.currentTab.url);
-      document.getElementById('currentUrl').textContent = url.hostname;
+      try {
+        const url = new URL(this.currentTab.url);
+        document.getElementById('currentUrl').textContent = url.hostname;
+      } catch (error) {
+        document.getElementById('currentUrl').textContent = 'Invalid URL';
+      }
     }
   }
 
   async analyzeTechnologies() {
+    // Skip analysis for chrome:// and other non-web URLs
+    if (!this.currentTab || !this.currentTab.url.startsWith('http')) {
+      this.showError('Cannot analyze this page. Please visit a website.');
+      return;
+    }
+
     this.showLoading();
     
     try {
@@ -58,7 +71,17 @@ class TechLookupPopup {
       
     } catch (error) {
       console.error('Analysis failed:', error);
-      this.showError('Failed to analyze website. Please try again.');
+      let errorMessage = 'Failed to analyze website. ';
+      
+      if (error.message) {
+        errorMessage += error.message;
+      } else if (typeof error === 'string') {
+        errorMessage += error;
+      } else {
+        errorMessage += 'Please try again.';
+      }
+      
+      this.showError(errorMessage);
     } finally {
       this.hideLoading();
     }
@@ -66,9 +89,20 @@ class TechLookupPopup {
 
   async injectAnalyzer() {
     return new Promise((resolve, reject) => {
+      // Add timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        reject(new Error('Analysis timeout - page may not be ready'));
+      }, 10000);
+
       chrome.tabs.sendMessage(this.currentTab.id, { action: 'analyze' }, (response) => {
+        clearTimeout(timeout);
+        
         if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError);
+          reject(new Error(chrome.runtime.lastError.message));
+        } else if (!response) {
+          reject(new Error('No response from content script'));
+        } else if (!response.success) {
+          reject(new Error(response.error || 'Analysis failed'));
         } else {
           resolve(response);
         }
@@ -77,29 +111,35 @@ class TechLookupPopup {
   }
 
   async sendToSupabase(data) {
-    const url = new URL(this.currentTab.url);
-    const hostname = url.hostname.replace(/^www\./, '');
-    
-    const payload = {
-      url: hostname,
-      technologies: data.technologies || [],
-      scraped_at: new Date().toISOString()
-    };
+    try {
+      const url = new URL(this.currentTab.url);
+      const hostname = url.hostname.replace(/^www\./, '');
+      
+      const payload = {
+        url: hostname,
+        technologies: data.technologies || [],
+        scraped_at: new Date().toISOString()
+      };
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/ingest`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload)
-    });
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ingest`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Supabase error:', error);
+      throw new Error(`Database error: ${error.message}`);
     }
-
-    return response.json();
   }
 
   displayResults() {
@@ -166,12 +206,15 @@ class TechLookupPopup {
 
   showLoading() {
     document.getElementById('analyzeBtn').disabled = true;
+    document.getElementById('analyzeBtn').textContent = '🔄 Analyzing...';
     document.getElementById('loading').style.display = 'block';
     document.getElementById('results').style.display = 'none';
+    document.getElementById('status').textContent = '';
   }
 
   hideLoading() {
     document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('analyzeBtn').textContent = '🔍 Re-analyze';
     document.getElementById('loading').style.display = 'none';
   }
 
@@ -185,6 +228,7 @@ class TechLookupPopup {
     const status = document.getElementById('status');
     status.className = 'status error';
     status.textContent = message;
+    document.getElementById('results').style.display = 'block';
   }
 }
 

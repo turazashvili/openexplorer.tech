@@ -70,7 +70,7 @@
       transition: background-color 0.2s;
     }
     
-    .analyze-btn:hover {
+    .analyze-btn:hover:not(:disabled) {
       background: #1d4ed8;
     }
     
@@ -171,15 +171,30 @@
     .footer a:hover {
       text-decoration: underline;
     }
+    
+    .auto-note {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #0369a1;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>TechLookup Analyzer</h1>
-    <p>Discover website technologies</p>
+    <p>Auto-discovering website technologies</p>
   </div>
   
   <div class="content">
+    <div class="auto-note">
+      ✨ Automatically analyzing current website
+    </div>
+    
     <div class="url-info">
       <div class="label">Current Website</div>
       <div class="url" id="currentUrl">Loading...</div>

@@ -11,15 +11,18 @@ class TechnologyDetector {
       'React': () => {
         return !!(window.React || 
                  document.querySelector('[data-reactroot]') ||
+                 document.querySelector('[data-react-helmet]') ||
                  document.querySelector('script[src*="react"]') ||
-                 document.documentElement.innerHTML.includes('__REACT_DEVTOOLS_GLOBAL_HOOK__'));
+                 document.documentElement.innerHTML.includes('__REACT_DEVTOOLS_GLOBAL_HOOK__') ||
+                 window.__REACT_DEVTOOLS_GLOBAL_HOOK__);
       },
       
       'Vue.js': () => {
         return !!(window.Vue || 
                  document.querySelector('[data-v-]') ||
                  document.querySelector('script[src*="vue"]') ||
-                 document.querySelector('#app').__vue__);
+                 document.querySelector('#app')?.__vue__ ||
+                 window.__VUE__);
       },
       
       'Angular': () => {
@@ -27,6 +30,7 @@ class TechnologyDetector {
                  window.ng ||
                  document.querySelector('[ng-app]') ||
                  document.querySelector('[ng-controller]') ||
+                 document.querySelector('[ng-version]') ||
                  document.querySelector('script[src*="angular"]'));
       },
       
@@ -40,19 +44,35 @@ class TechnologyDetector {
                  document.querySelector('#__next'));
       },
       
+      'Nuxt.js': () => {
+        return !!(window.$nuxt || 
+                 document.querySelector('#__nuxt') ||
+                 document.querySelector('script[src*="nuxt"]'));
+      },
+      
       // CSS Frameworks
       'Bootstrap': () => {
         return !!(document.querySelector('link[href*="bootstrap"]') ||
                  document.querySelector('.container') ||
                  document.querySelector('.row') ||
-                 document.querySelector('.col-'));
+                 document.querySelector('.col-') ||
+                 document.querySelector('[class*="col-"]'));
       },
       
       'Tailwind CSS': () => {
         return !!(document.querySelector('link[href*="tailwind"]') ||
                  document.querySelector('[class*="bg-"]') ||
                  document.querySelector('[class*="text-"]') ||
-                 document.querySelector('[class*="p-"]'));
+                 document.querySelector('[class*="p-"]') ||
+                 document.querySelector('[class*="m-"]') ||
+                 document.querySelector('[class*="w-"]') ||
+                 document.querySelector('[class*="h-"]'));
+      },
+      
+      'Bulma': () => {
+        return !!(document.querySelector('link[href*="bulma"]') ||
+                 document.querySelector('.column') ||
+                 document.querySelector('.columns'));
       },
       
       // Content Management Systems
@@ -60,14 +80,16 @@ class TechnologyDetector {
         return !!(document.querySelector('link[href*="wp-content"]') ||
                  document.querySelector('script[src*="wp-content"]') ||
                  document.querySelector('meta[name="generator"][content*="WordPress"]') ||
-                 document.querySelector('link[rel="pingback"]'));
+                 document.querySelector('link[rel="pingback"]') ||
+                 window.wp);
       },
       
       'Shopify': () => {
         return !!(window.Shopify ||
                  document.querySelector('script[src*="shopify"]') ||
                  document.querySelector('link[href*="shopify"]') ||
-                 document.querySelector('meta[name="shopify-checkout-api-token"]'));
+                 document.querySelector('meta[name="shopify-checkout-api-token"]') ||
+                 document.querySelector('script[src*="shopifycdn"]'));
       },
       
       'Drupal': () => {
@@ -77,13 +99,20 @@ class TechnologyDetector {
                  document.querySelector('body[class*="drupal"]'));
       },
       
+      'Joomla': () => {
+        return !!(document.querySelector('meta[name="generator"][content*="Joomla"]') ||
+                 document.querySelector('script[src*="joomla"]') ||
+                 document.querySelector('link[href*="joomla"]'));
+      },
+      
       // Analytics & Tracking
       'Google Analytics': () => {
         return !!(window.gtag ||
                  window.ga ||
                  window._gaq ||
                  document.querySelector('script[src*="google-analytics"]') ||
-                 document.querySelector('script[src*="googletagmanager"]'));
+                 document.querySelector('script[src*="googletagmanager"]') ||
+                 document.querySelector('script[src*="gtag"]'));
       },
       
       'Google Tag Manager': () => {
@@ -97,12 +126,16 @@ class TechnologyDetector {
                  document.querySelector('script[src*="connect.facebook.net"]'));
       },
       
+      'Hotjar': () => {
+        return !!(window.hj ||
+                 document.querySelector('script[src*="hotjar"]'));
+      },
+      
       // CDN & Infrastructure
       'Cloudflare': () => {
         return !!(document.querySelector('script[src*="cloudflare"]') ||
                  document.querySelector('link[href*="cloudflare"]') ||
-                 this.checkHeaders('cf-ray') ||
-                 this.checkHeaders('server', 'cloudflare'));
+                 document.querySelector('script[src*="cdnjs.cloudflare.com"]'));
       },
       
       // E-commerce
@@ -110,13 +143,6 @@ class TechnologyDetector {
         return !!(document.querySelector('script[src*="woocommerce"]') ||
                  document.querySelector('link[href*="woocommerce"]') ||
                  document.querySelector('body[class*="woocommerce"]'));
-      },
-      
-      // Other Technologies
-      'Font Awesome': () => {
-        return !!(document.querySelector('link[href*="font-awesome"]') ||
-                 document.querySelector('script[src*="font-awesome"]') ||
-                 document.querySelector('[class*="fa-"]'));
       },
       
       'Stripe': () => {
@@ -128,14 +154,33 @@ class TechnologyDetector {
         return !!(window.paypal ||
                  document.querySelector('script[src*="paypal"]') ||
                  document.querySelector('form[action*="paypal"]'));
+      },
+      
+      // Other Technologies
+      'Font Awesome': () => {
+        return !!(document.querySelector('link[href*="font-awesome"]') ||
+                 document.querySelector('script[src*="font-awesome"]') ||
+                 document.querySelector('[class*="fa-"]') ||
+                 document.querySelector('[class*="fas "]') ||
+                 document.querySelector('[class*="far "]'));
+      },
+      
+      'Lodash': () => {
+        return !!(window._ && window._.VERSION);
+      },
+      
+      'Moment.js': () => {
+        return !!(window.moment);
+      },
+      
+      'D3.js': () => {
+        return !!(window.d3);
+      },
+      
+      'Three.js': () => {
+        return !!(window.THREE);
       }
     };
-  }
-
-  checkHeaders(headerName, expectedValue = null) {
-    // This is a simplified check - in a real extension, you'd need to 
-    // use the webRequest API to check actual headers
-    return false;
   }
 
   detectTechnologies() {
@@ -171,6 +216,8 @@ class TechnologyDetector {
         if (content.includes('Drupal')) this.technologies.add('Drupal');
         if (content.includes('Joomla')) this.technologies.add('Joomla');
         if (content.includes('Shopify')) this.technologies.add('Shopify');
+        if (content.includes('Squarespace')) this.technologies.add('Squarespace');
+        if (content.includes('Wix')) this.technologies.add('Wix');
       }
     });
   }
@@ -190,6 +237,18 @@ class TechnologyDetector {
         if (src.includes('vue')) this.technologies.add('Vue.js');
         if (src.includes('angular')) this.technologies.add('Angular');
         if (src.includes('bootstrap')) this.technologies.add('Bootstrap');
+        if (src.includes('tailwind')) this.technologies.add('Tailwind CSS');
+        
+        // Analytics
+        if (src.includes('google-analytics') || src.includes('gtag')) this.technologies.add('Google Analytics');
+        if (src.includes('googletagmanager')) this.technologies.add('Google Tag Manager');
+        if (src.includes('facebook.net')) this.technologies.add('Facebook Pixel');
+        
+        // Other libraries
+        if (src.includes('lodash')) this.technologies.add('Lodash');
+        if (src.includes('moment')) this.technologies.add('Moment.js');
+        if (src.includes('d3')) this.technologies.add('D3.js');
+        if (src.includes('three')) this.technologies.add('Three.js');
       }
     });
   }
@@ -198,15 +257,22 @@ class TechnologyDetector {
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'analyze') {
-    const detector = new TechnologyDetector();
-    const technologies = detector.detectTechnologies();
-    
-    sendResponse({
-      success: true,
-      url: window.location.href,
-      technologies: technologies,
-      timestamp: new Date().toISOString()
-    });
+    try {
+      const detector = new TechnologyDetector();
+      const technologies = detector.detectTechnologies();
+      
+      sendResponse({
+        success: true,
+        url: window.location.href,
+        technologies: technologies,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      sendResponse({
+        success: false,
+        error: error.message || 'Detection failed'
+      });
+    }
   }
   
   return true; // Keep message channel open for async response
