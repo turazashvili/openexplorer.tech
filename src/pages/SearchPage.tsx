@@ -217,12 +217,12 @@ const SearchPage: React.FC = () => {
       <section className="bg-gradient-to-br from-gray-50 to-white py-12 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 mb-4 sm:mb-6 leading-tight">
-            Discover what powers{' '}
+            Uncover what powers{' '}
             <span className="text-blue-600">any website</span>
           </h1>
           
           <p className="text-lg sm:text-xl text-gray-600 mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
-            Uncover the technologies, frameworks, and tools behind any website with our comprehensive database
+            Discover the technologies, frameworks, and tools behind any website with our comprehensive database
           </p>
           
           <div className="px-4">

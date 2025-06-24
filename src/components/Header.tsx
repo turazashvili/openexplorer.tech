@@ -9,7 +9,7 @@ const Header: React.FC = () => {
         <div className="flex justify-between items-center h-14 sm:h-16">
           <Link to="/" className="flex items-center space-x-2">
             <Database className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-            <span className="text-lg sm:text-xl font-bold text-gray-900">TechLookup</span>
+            <span className="text-lg sm:text-xl font-bold text-gray-900">Open Tech Explorer</span>
           </Link>
           
           <nav className="hidden md:flex space-x-6 lg:space-x-8">

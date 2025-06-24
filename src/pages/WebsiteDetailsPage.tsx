@@ -71,6 +71,11 @@ const WebsiteDetailsPage: React.FC = () => {
     return features;
   };
 
+  // Helper function to create SEO-friendly technology URLs
+  const getTechnologyUrl = (techName: string) => {
+    return `/${techName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8 sm:py-16 px-4 sm:px-6 lg:px-8">
@@ -238,8 +243,9 @@ const WebsiteDetailsPage: React.FC = () => {
                       {techs.map((tech) => (
                         <Link
                           key={tech.id}
-                          to={`/technology/${tech.id}`}
+                          to={getTechnologyUrl(tech.name)}
                           className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
+                          title={`View all websites using ${tech.name}`}
                         >
                           {tech.name}
                         </Link>

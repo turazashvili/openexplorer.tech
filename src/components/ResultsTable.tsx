@@ -42,6 +42,11 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
     return indicators.slice(0, 3); // Show max 3 indicators
   };
 
+  // Helper function to create SEO-friendly technology URLs
+  const getTechnologyUrl = (techName: string) => {
+    return `/${techName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
@@ -104,13 +109,14 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-2">
                     {result.technologies.slice(0, 3).map((tech, index) => (
-                      <span
+                      <Link
                         key={index}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        title={tech.category}
+                        to={getTechnologyUrl(tech.name)}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
+                        title={`View all websites using ${tech.name} (${tech.category})`}
                       >
                         {tech.name}
-                      </span>
+                      </Link>
                     ))}
                     {result.technologies.length > 3 && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
@@ -178,13 +184,14 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
                 <div className="text-xs text-gray-500 mb-1">Technologies</div>
                 <div className="flex flex-wrap gap-1">
                   {result.technologies.slice(0, 4).map((tech, index) => (
-                    <span
+                    <Link
                       key={index}
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                      title={tech.category}
+                      to={getTechnologyUrl(tech.name)}
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
+                      title={`View all websites using ${tech.name} (${tech.category})`}
                     >
                       {tech.name}
-                    </span>
+                    </Link>
                   ))}
                   {result.technologies.length > 4 && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">

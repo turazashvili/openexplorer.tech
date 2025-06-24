@@ -140,3 +140,14 @@ export async function ingestWebsiteData(data: {
 
   return response.json();
 }
+
+// Helper function to create SEO-friendly technology URLs
+export function getTechnologyUrl(techName: string): string {
+  return `/${techName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+}
+
+// Helper function to get technology name from URL slug
+export function getTechnologyNameFromUrl(slug: string): string {
+  // This is a simple reverse mapping - in a real app you might want to store this mapping
+  return slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}

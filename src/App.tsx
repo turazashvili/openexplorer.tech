@@ -4,6 +4,7 @@ import Header from './components/Header';
 import SearchPage from './pages/SearchPage';
 import WebsiteDetailsPage from './pages/WebsiteDetailsPage';
 import TechnologyDetailsPage from './pages/TechnologyDetailsPage';
+import TechnologyListPage from './pages/TechnologyListPage';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route path="/" element={<SearchPage />} />
           <Route path="/website/:id" element={<WebsiteDetailsPage />} />
           <Route path="/technology/:id" element={<TechnologyDetailsPage />} />
+          <Route path="/:technologyName" element={<TechnologyListPage />} />
         </Routes>
       </div>
     </Router>
