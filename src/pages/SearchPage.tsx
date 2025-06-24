@@ -4,8 +4,10 @@ import SearchBar from '../components/SearchBar';
 import SearchFilters from '../components/SearchFilters';
 import ResultsTable from '../components/ResultsTable';
 import Pagination from '../components/Pagination';
+import RealtimeNotifications from '../components/RealtimeNotifications';
+import RealtimeUpdateBanner from '../components/RealtimeUpdateBanner';
 import { searchWebsites, SearchParams, WebsiteResult } from '../lib/api';
-import { useRealtimeStats, useRealtimeSearch } from '../hooks/useRealtimeData';
+import { useRealtimeStats, useRealtimeSearch, useRealtimeWebsiteList } from '../hooks/useRealtimeData';
 
 const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -18,9 +20,10 @@ const SearchPage: React.FC = () => {
     totalPages: 0,
   });
 
-  // Real-time stats and search updates
+  // Real-time hooks
   const realtimeStats = useRealtimeStats();
-  const { lastUpdate } = useRealtimeSearch(searchParams);
+  const { lastUpdate, recentChanges, resetChanges } = useRealtimeSearch(searchParams);
+  const { pendingUpdates, refreshResults, hasPendingUpdates } = useRealtimeWebsiteList(results);
 
   const currentQuery = searchParams.get('q') || '';
   const currentFilters = {
@@ -35,10 +38,26 @@ const SearchPage: React.FC = () => {
 
   useEffect(() => {
     performSearch();
-  }, [searchParams, lastUpdate]);
+  }, [searchParams]);
 
-  const performSearch = async () => {
-    setLoading(true);
+  // Auto-refresh when real-time updates are detected (but only if user hasn't interacted recently)
+  useEffect(() => {
+    const autoRefreshDelay = 10000; // 10 seconds
+    const timer = setTimeout(() => {
+      if (hasPendingUpdates && !loading) {
+        console.log('🔄 Auto-refreshing due to real-time updates');
+        performSearch(true);
+      }
+    }, autoRefreshDelay);
+
+    return () => clearTimeout(timer);
+  }, [lastUpdate, hasPendingUpdates, loading]);
+
+  const performSearch = async (isAutoRefresh = false) => {
+    if (!isAutoRefresh) {
+      setLoading(true);
+    }
+    
     try {
       const params: SearchParams = {
         q: searchParams.get('q') || undefined,
@@ -59,13 +78,18 @@ const SearchPage: React.FC = () => {
       setResults(response.results);
       setPagination(response.pagination);
       
+      // Update real-time list
+      refreshResults(response.results);
+      
       console.log('📊 Search response:', response);
     } catch (error) {
       console.error('Search error:', error);
       setResults([]);
       setPagination(prev => ({ ...prev, total: 0, totalPages: 0 }));
     } finally {
-      setLoading(false);
+      if (!isAutoRefresh) {
+        setLoading(false);
+      }
     }
   };
 
@@ -76,6 +100,7 @@ const SearchPage: React.FC = () => {
     }
     // Reset page when searching
     setSearchParams(newParams);
+    resetChanges(); // Reset change counters
   };
 
   const handleFiltersChange = (filters: any) => {
@@ -100,12 +125,22 @@ const SearchPage: React.FC = () => {
     });
     
     setSearchParams(newParams);
+    resetChanges(); // Reset change counters
   };
 
   const handlePageChange = (page: number) => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('page', page.toString());
     setSearchParams(newParams);
+  };
+
+  const handleRefreshClick = () => {
+    performSearch();
+    resetChanges();
+  };
+
+  const handleDismissUpdates = () => {
+    resetChanges();
   };
 
   // Count active filters (excluding sort/order)
@@ -115,6 +150,9 @@ const SearchPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Real-time Notifications */}
+      <RealtimeNotifications />
+
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-gray-50 to-white py-12 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
@@ -133,7 +171,7 @@ const SearchPage: React.FC = () => {
           
           <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-500">
             <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${realtimeStats.isConnected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+              <div className={`w-2 h-2 rounded-full ${realtimeStats.isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
               <span>{realtimeStats.totalWebsites.toLocaleString()}+ websites analyzed</span>
             </div>
             <div className="flex items-center space-x-2">
@@ -142,7 +180,7 @@ const SearchPage: React.FC = () => {
             </div>
             {realtimeStats.recentlyAdded > 0 && (
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
                 <span>{realtimeStats.recentlyAdded} added today</span>
               </div>
             )}
@@ -187,6 +225,14 @@ const SearchPage: React.FC = () => {
               />
             </div>
           </div>
+
+          {/* Real-time Update Banner */}
+          <RealtimeUpdateBanner
+            pendingUpdates={pendingUpdates}
+            onRefresh={handleRefreshClick}
+            onDismiss={handleDismissUpdates}
+            recentChanges={recentChanges}
+          />
           
           <ResultsTable results={results} loading={loading} />
           

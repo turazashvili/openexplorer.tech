@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { WebsiteResult } from '../lib/api';
 
 interface RealtimeStats {
   totalWebsites: number;
   totalTechnologies: number;
   recentlyAdded: number;
   isConnected: boolean;
+  lastUpdate: Date;
 }
 
 export function useRealtimeStats() {
@@ -13,7 +15,8 @@ export function useRealtimeStats() {
     totalWebsites: 0,
     totalTechnologies: 0,
     recentlyAdded: 0,
-    isConnected: false
+    isConnected: false,
+    lastUpdate: new Date()
   });
 
   useEffect(() => {
@@ -28,6 +31,7 @@ export function useRealtimeStats() {
         (payload) => {
           console.log('🔄 Website change detected:', payload);
           loadInitialStats(); // Refresh stats when data changes
+          setStats(prev => ({ ...prev, lastUpdate: new Date() }));
         }
       )
       .subscribe((status) => {
@@ -42,6 +46,18 @@ export function useRealtimeStats() {
         (payload) => {
           console.log('🔄 Technology change detected:', payload);
           loadInitialStats();
+          setStats(prev => ({ ...prev, lastUpdate: new Date() }));
+        }
+      )
+      .subscribe();
+
+    const linkSubscription = supabase
+      .channel('website-technologies-changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'website_technologies' },
+        (payload) => {
+          console.log('🔄 Website-technology link change detected:', payload);
+          setStats(prev => ({ ...prev, lastUpdate: new Date() }));
         }
       )
       .subscribe();
@@ -49,6 +65,7 @@ export function useRealtimeStats() {
     return () => {
       websitesSubscription.unsubscribe();
       technologiesSubscription.unsubscribe();
+      linkSubscription.unsubscribe();
     };
   }, []);
 
@@ -88,23 +105,118 @@ export function useRealtimeStats() {
   return stats;
 }
 
-export function useRealtimeSearch(searchParams: any) {
+export function useRealtimeSearch(searchParams: URLSearchParams) {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [recentChanges, setRecentChanges] = useState<{
+    newWebsites: number;
+    updatedWebsites: number;
+    newTechnologies: number;
+  }>({
+    newWebsites: 0,
+    updatedWebsites: 0,
+    newTechnologies: 0
+  });
+
+  const resetChanges = useCallback(() => {
+    setRecentChanges({
+      newWebsites: 0,
+      updatedWebsites: 0,
+      newTechnologies: 0
+    });
+  }, []);
 
   useEffect(() => {
+    // Reset changes when search params change
+    resetChanges();
+
     // Subscribe to changes that might affect search results
+    const websiteSubscription = supabase
+      .channel('search-website-updates')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'websites' },
+        (payload) => {
+          console.log('🆕 New website added:', payload.new);
+          setLastUpdate(new Date());
+          setRecentChanges(prev => ({ 
+            ...prev, 
+            newWebsites: prev.newWebsites + 1 
+          }));
+        }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'websites' },
+        (payload) => {
+          console.log('🔄 Website updated:', payload.new);
+          setLastUpdate(new Date());
+          setRecentChanges(prev => ({ 
+            ...prev, 
+            updatedWebsites: prev.updatedWebsites + 1 
+          }));
+        }
+      )
+      .subscribe();
+
+    const technologySubscription = supabase
+      .channel('search-technology-updates')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'technologies' },
+        (payload) => {
+          console.log('🆕 New technology added:', payload.new);
+          setLastUpdate(new Date());
+          setRecentChanges(prev => ({ 
+            ...prev, 
+            newTechnologies: prev.newTechnologies + 1 
+          }));
+        }
+      )
+      .subscribe();
+
+    const linkSubscription = supabase
+      .channel('search-link-updates')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'website_technologies' },
+        (payload) => {
+          console.log('🔗 Website-technology link changed:', payload);
+          setLastUpdate(new Date());
+        }
+      )
+      .subscribe();
+
+    return () => {
+      websiteSubscription.unsubscribe();
+      technologySubscription.unsubscribe();
+      linkSubscription.unsubscribe();
+    };
+  }, [searchParams.toString(), resetChanges]);
+
+  return { lastUpdate, recentChanges, resetChanges };
+}
+
+// Hook for real-time website list updates
+export function useRealtimeWebsiteList(initialResults: WebsiteResult[]) {
+  const [results, setResults] = useState<WebsiteResult[]>(initialResults);
+  const [pendingUpdates, setPendingUpdates] = useState<number>(0);
+
+  useEffect(() => {
+    setResults(initialResults);
+    setPendingUpdates(0);
+  }, [initialResults]);
+
+  useEffect(() => {
     const subscription = supabase
-      .channel('search-updates')
+      .channel('website-list-updates')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'websites' },
-        () => {
-          setLastUpdate(new Date());
+        (payload) => {
+          console.log('📋 Website list change detected:', payload);
+          setPendingUpdates(prev => prev + 1);
         }
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'website_technologies' },
-        () => {
-          setLastUpdate(new Date());
+        (payload) => {
+          console.log('📋 Website technologies change detected:', payload);
+          setPendingUpdates(prev => prev + 1);
         }
       )
       .subscribe();
@@ -114,5 +226,88 @@ export function useRealtimeSearch(searchParams: any) {
     };
   }, []);
 
-  return { lastUpdate };
+  const refreshResults = useCallback((newResults: WebsiteResult[]) => {
+    setResults(newResults);
+    setPendingUpdates(0);
+  }, []);
+
+  return { 
+    results, 
+    pendingUpdates, 
+    refreshResults,
+    hasPendingUpdates: pendingUpdates > 0
+  };
+}
+
+// Hook for real-time notifications
+export function useRealtimeNotifications() {
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    type: 'new_website' | 'new_technology' | 'website_update';
+    message: string;
+    timestamp: Date;
+    data?: any;
+  }>>([]);
+
+  useEffect(() => {
+    const subscription = supabase
+      .channel('notifications')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'websites' },
+        (payload) => {
+          const newNotification = {
+            id: `website-${payload.new.id}`,
+            type: 'new_website' as const,
+            message: `New website analyzed: ${payload.new.url}`,
+            timestamp: new Date(),
+            data: payload.new
+          };
+          
+          setNotifications(prev => [newNotification, ...prev.slice(0, 9)]); // Keep last 10
+          
+          // Auto-remove after 5 seconds
+          setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+          }, 5000);
+        }
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'technologies' },
+        (payload) => {
+          const newNotification = {
+            id: `tech-${payload.new.id}`,
+            type: 'new_technology' as const,
+            message: `New technology discovered: ${payload.new.name}`,
+            timestamp: new Date(),
+            data: payload.new
+          };
+          
+          setNotifications(prev => [newNotification, ...prev.slice(0, 9)]);
+          
+          setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+          }, 5000);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
+  const clearAllNotifications = useCallback(() => {
+    setNotifications([]);
+  }, []);
+
+  return {
+    notifications,
+    dismissNotification,
+    clearAllNotifications,
+    hasNotifications: notifications.length > 0
+  };
 }
