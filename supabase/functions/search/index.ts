@@ -38,32 +38,71 @@ Deno.serve(async (req: Request) => {
     const isSpa = searchParams.get('spa');
     const hasServiceWorker = searchParams.get('service_worker');
 
-    // Build the query
-    let queryBuilder = supabaseClient
-      .from('websites')
-      .select(`
-        id,
-        url,
-        last_scraped,
-        metadata,
-        website_technologies!inner (
-          technologies (
-            id,
-            name,
-            category
+    // Determine if query is likely a technology name vs URL
+    const isLikelyTechnology = query && !query.includes('.') && !query.includes('/');
+    
+    let queryBuilder;
+    let countQuery;
+
+    if (isLikelyTechnology || tech) {
+      // Technology-based search
+      const techToSearch = tech || query;
+      
+      queryBuilder = supabaseClient
+        .from('websites')
+        .select(`
+          id,
+          url,
+          last_scraped,
+          metadata,
+          website_technologies!inner (
+            technologies!inner (
+              id,
+              name,
+              category
+            )
           )
-        )
-      `);
+        `)
+        .ilike('website_technologies.technologies.name', `%${techToSearch}%`);
 
-    // Apply filters
-    if (query) {
-      queryBuilder = queryBuilder.ilike('url', `%${query}%`);
+      // Count query for technology search
+      countQuery = supabaseClient
+        .from('websites')
+        .select('id', { count: 'exact', head: true })
+        .eq('website_technologies.technologies.name', techToSearch);
+
+    } else {
+      // URL-based search or general search
+      queryBuilder = supabaseClient
+        .from('websites')
+        .select(`
+          id,
+          url,
+          last_scraped,
+          metadata,
+          website_technologies (
+            technologies (
+              id,
+              name,
+              category
+            )
+          )
+        `);
+
+      if (query) {
+        queryBuilder = queryBuilder.ilike('url', `%${query}%`);
+        countQuery = supabaseClient
+          .from('websites')
+          .select('*', { count: 'exact', head: true })
+          .ilike('url', `%${query}%`);
+      } else {
+        countQuery = supabaseClient
+          .from('websites')
+          .select('*', { count: 'exact', head: true });
+      }
     }
 
-    if (tech) {
-      queryBuilder = queryBuilder.eq('website_technologies.technologies.name', tech);
-    }
-
+    // Apply category filter
     if (category) {
       queryBuilder = queryBuilder.eq('website_technologies.technologies.category', category);
     }
@@ -71,18 +110,22 @@ Deno.serve(async (req: Request) => {
     // Apply metadata filters
     if (isResponsive !== null) {
       queryBuilder = queryBuilder.eq('metadata->>is_responsive', isResponsive);
+      if (countQuery) countQuery = countQuery.eq('metadata->>is_responsive', isResponsive);
     }
 
     if (isHttps !== null) {
       queryBuilder = queryBuilder.eq('metadata->>is_https', isHttps);
+      if (countQuery) countQuery = countQuery.eq('metadata->>is_https', isHttps);
     }
 
     if (isSpa !== null) {
       queryBuilder = queryBuilder.eq('metadata->>likely_spa', isSpa);
+      if (countQuery) countQuery = countQuery.eq('metadata->>likely_spa', isSpa);
     }
 
     if (hasServiceWorker !== null) {
       queryBuilder = queryBuilder.eq('metadata->>has_service_worker', hasServiceWorker);
+      if (countQuery) countQuery = countQuery.eq('metadata->>has_service_worker', hasServiceWorker);
     }
 
     // Apply sorting
@@ -114,10 +157,10 @@ Deno.serve(async (req: Request) => {
     const results = websites?.map(website => {
       // Get unique technologies for this website
       const technologies = website.website_technologies
-        .map(wt => wt.technologies)
-        .filter((tech, index, self) => 
-          index === self.findIndex(t => t.id === tech.id)
-        );
+        ?.map(wt => wt.technologies)
+        ?.filter((tech, index, self) => 
+          tech && index === self.findIndex(t => t && t.id === tech.id)
+        ) || [];
 
       return {
         id: website.id,
@@ -131,29 +174,18 @@ Deno.serve(async (req: Request) => {
       };
     }) || [];
 
-    // Get total count for pagination (with same filters)
-    let countQuery = supabaseClient
-      .from('websites')
-      .select('*', { count: 'exact', head: true });
-
-    // Apply same filters for count
-    if (query) {
-      countQuery = countQuery.ilike('url', `%${query}%`);
+    // Get total count for pagination
+    let totalCount = 0;
+    if (countQuery) {
+      const { count } = await countQuery;
+      totalCount = count || 0;
+    } else {
+      // Fallback count for technology searches
+      const { count } = await supabaseClient
+        .from('websites')
+        .select('*', { count: 'exact', head: true });
+      totalCount = count || 0;
     }
-    if (isResponsive !== null) {
-      countQuery = countQuery.eq('metadata->>is_responsive', isResponsive);
-    }
-    if (isHttps !== null) {
-      countQuery = countQuery.eq('metadata->>is_https', isHttps);
-    }
-    if (isSpa !== null) {
-      countQuery = countQuery.eq('metadata->>likely_spa', isSpa);
-    }
-    if (hasServiceWorker !== null) {
-      countQuery = countQuery.eq('metadata->>has_service_worker', hasServiceWorker);
-    }
-
-    const { count: totalCount } = await countQuery;
 
     return new Response(
       JSON.stringify({
@@ -161,8 +193,13 @@ Deno.serve(async (req: Request) => {
         pagination: {
           page,
           limit,
-          total: totalCount || 0,
-          totalPages: Math.ceil((totalCount || 0) / limit)
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit)
+        },
+        debug: {
+          query,
+          isLikelyTechnology,
+          searchType: isLikelyTechnology || tech ? 'technology' : 'url'
         }
       }),
       { 
