@@ -43,13 +43,37 @@ Deno.serve(async (req: Request) => {
     // Enhanced query analysis
     const cleanQuery = query.trim().toLowerCase();
     const isLikelyURL = cleanQuery.includes('.') || cleanQuery.includes('/') || cleanQuery.startsWith('http');
-    const isLikelyTechnology = !isLikelyURL && cleanQuery.length > 0;
     
     let queryBuilder;
     let countQueryBuilder;
 
-    if (category) {
-      // Category-based search - find websites that use technologies in this category
+    if (tech) {
+      // Explicit technology search - this is the key fix for technology pages
+      console.log('🎯 Technology-specific search for:', tech);
+      
+      // First, find the exact technology by name (case-insensitive)
+      const { data: technologyData, error: techError } = await supabaseClient
+        .from('technologies')
+        .select('id, name, category')
+        .ilike('name', tech)
+        .single();
+
+      if (techError || !technologyData) {
+        console.log('❌ Technology not found:', tech);
+        return new Response(
+          JSON.stringify({
+            results: [],
+            suggestions: [],
+            pagination: { page, limit, total: 0, totalPages: 0 },
+            debug: { query: tech, searchType: 'technology_not_found', error: 'Technology not found' }
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('✅ Found technology:', technologyData);
+
+      // Now search for websites using this specific technology
       queryBuilder = supabaseClient
         .from('websites')
         .select(`
@@ -65,43 +89,40 @@ Deno.serve(async (req: Request) => {
             )
           )
         `)
-        .eq('website_technologies.technologies.category', category);
-
-      // Separate count query for category search
-      countQueryBuilder = supabaseClient
-        .from('websites')
-        .select('id', { count: 'exact', head: true })
-        .eq('website_technologies.technologies.category', category);
-
-    } else if (tech) {
-      // Explicit technology search with partial matching
-      queryBuilder = supabaseClient
-        .from('websites')
-        .select(`
-          id,
-          url,
-          last_scraped,
-          metadata,
-          website_technologies!inner (
-            technologies!inner (
-              id,
-              name,
-              category
-            )
-          )
-        `)
-        .ilike('website_technologies.technologies.name', `%${tech}%`);
+        .eq('website_technologies.technology_id', technologyData.id);
 
       // Count query for technology search
       countQueryBuilder = supabaseClient
         .from('websites')
         .select('id', { count: 'exact', head: true })
-        .eq('website_technologies.technologies.name', tech);
+        .eq('website_technologies.technology_id', technologyData.id);
+
+    } else if (category) {
+      // Category-based search
+      queryBuilder = supabaseClient
+        .from('websites')
+        .select(`
+          id,
+          url,
+          last_scraped,
+          metadata,
+          website_technologies!inner (
+            technologies!inner (
+              id,
+              name,
+              category
+            )
+          )
+        `)
+        .eq('website_technologies.technologies.category', category);
+
+      countQueryBuilder = supabaseClient
+        .from('websites')
+        .select('id', { count: 'exact', head: true })
+        .eq('website_technologies.technologies.category', category);
 
     } else if (cleanQuery.length > 0) {
-      // ENHANCED: Combined URL and technology search
-      // This is the key fix - search BOTH URLs and technologies simultaneously
-      
+      // Combined URL and technology search
       console.log('🔍 Performing combined URL + technology search for:', cleanQuery);
       
       queryBuilder = supabaseClient
@@ -127,31 +148,29 @@ Deno.serve(async (req: Request) => {
       // Build comprehensive search conditions
       const searchConditions = [];
       
-      // 1. URL-based search patterns
+      // URL-based search patterns
       searchConditions.push(`url.ilike.%${cleanQuery}%`);
       
-      // 2. If query looks like it could be part of a domain, try with common TLDs
+      // If query looks like it could be part of a domain, try with common TLDs
       if (!cleanQuery.includes('.') && cleanQuery.length > 2) {
         const commonTLDs = ['com', 'org', 'net', 'io', 'co', 'ai', 'app'];
         for (const tld of commonTLDs) {
           searchConditions.push(`url.ilike.%${cleanQuery}.${tld}%`);
-          searchConditions.push(`url.ilike.${cleanQuery}.${tld}`); // Exact match
+          searchConditions.push(`url.ilike.${cleanQuery}.${tld}`);
         }
       }
       
-      // 3. If query has a TLD, try without www
+      // If query has a TLD, try without www
       if (cleanQuery.includes('.')) {
         const withoutWww = cleanQuery.replace(/^www\./, '');
         searchConditions.push(`url.ilike.%${withoutWww}%`);
-        searchConditions.push(`url.eq.${withoutWww}`); // Exact match
+        searchConditions.push(`url.eq.${withoutWww}`);
       }
       
-      // 4. Try as subdomain
+      // Try as subdomain
       if (!cleanQuery.includes('.')) {
         searchConditions.push(`url.ilike.${cleanQuery}.%`);
       }
-
-      console.log('🔍 Search conditions:', searchConditions);
 
       // Apply the combined search with OR logic
       const combinedFilter = `or(${searchConditions.join(',')})`;
@@ -159,7 +178,6 @@ Deno.serve(async (req: Request) => {
       countQueryBuilder = countQueryBuilder.or(combinedFilter);
 
       // ALSO search for websites that use technologies matching the query
-      // This is done in a separate query and then combined
       let techQueryBuilder = supabaseClient
         .from('websites')
         .select(`
@@ -177,7 +195,7 @@ Deno.serve(async (req: Request) => {
         `)
         .ilike('website_technologies.technologies.name', `%${cleanQuery}%`);
 
-      // Apply metadata filters to tech query too
+      // Apply metadata filters to both queries
       const applyMetadataFilters = (builder: any) => {
         if (isResponsive !== null && isResponsive !== '') {
           builder = builder.eq('metadata->>is_responsive', isResponsive === 'true');
@@ -198,26 +216,25 @@ Deno.serve(async (req: Request) => {
       countQueryBuilder = applyMetadataFilters(countQueryBuilder);
       techQueryBuilder = applyMetadataFilters(techQueryBuilder);
 
-      // Apply sorting to both queries
-      if (sortBy === 'url') {
-        queryBuilder = queryBuilder.order('url', { ascending: sortOrder === 'asc' });
-        techQueryBuilder = techQueryBuilder.order('url', { ascending: sortOrder === 'asc' });
-      } else if (sortBy === 'load_time') {
-        queryBuilder = queryBuilder.order('metadata->>page_load_time', { ascending: sortOrder === 'asc' });
-        techQueryBuilder = techQueryBuilder.order('metadata->>page_load_time', { ascending: sortOrder === 'asc' });
-      } else {
-        queryBuilder = queryBuilder.order('last_scraped', { ascending: sortOrder === 'asc' });
-        techQueryBuilder = techQueryBuilder.order('last_scraped', { ascending: sortOrder === 'asc' });
-      }
+      // Apply sorting
+      const applySorting = (builder: any) => {
+        if (sortBy === 'url') {
+          return builder.order('url', { ascending: sortOrder === 'asc' });
+        } else if (sortBy === 'load_time') {
+          return builder.order('metadata->>page_load_time', { ascending: sortOrder === 'asc' });
+        } else {
+          return builder.order('last_scraped', { ascending: sortOrder === 'asc' });
+        }
+      };
+
+      queryBuilder = applySorting(queryBuilder);
+      techQueryBuilder = applySorting(techQueryBuilder);
 
       // Execute both URL and technology searches
       const [urlResults, techResults] = await Promise.all([
         queryBuilder.range(offset, offset + limit - 1),
-        techQueryBuilder.range(0, limit - 1) // Get some tech results too
+        techQueryBuilder.range(0, limit - 1)
       ]);
-
-      console.log('📊 URL search results:', urlResults.data?.length || 0);
-      console.log('📊 Tech search results:', techResults.data?.length || 0);
 
       // Combine and deduplicate results
       const allWebsites = [];
@@ -243,7 +260,7 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // Get total count (approximate)
+      // Get total count
       const { count: urlCount } = await countQueryBuilder;
       const { count: techCount } = await supabaseClient
         .from('websites')
@@ -308,24 +325,13 @@ Deno.serve(async (req: Request) => {
           debug: {
             query: cleanQuery,
             originalQuery: query,
-            category,
-            isLikelyURL,
-            isLikelyTechnology,
             searchType: 'combined',
             totalFound: results.length,
             urlResults: urlResults.data?.length || 0,
-            techResults: techResults.data?.length || 0,
-            appliedFilters: {
-              responsive: isResponsive,
-              https: isHttps,
-              spa: isSpa,
-              service_worker: hasServiceWorker
-            }
+            techResults: techResults.data?.length || 0
           }
         }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
 
     } else {
@@ -351,7 +357,7 @@ Deno.serve(async (req: Request) => {
         .select('*', { count: 'exact', head: true });
     }
 
-    // Apply metadata filters to both queries (for non-combined searches)
+    // Apply metadata filters (for non-combined searches)
     const applyMetadataFilters = (builder: any) => {
       if (isResponsive !== null && isResponsive !== '') {
         builder = builder.eq('metadata->>is_responsive', isResponsive === 'true');
@@ -368,7 +374,7 @@ Deno.serve(async (req: Request) => {
       return builder;
     };
 
-    if (queryBuilder && !cleanQuery) { // Only apply if not already handled above
+    if (queryBuilder && !cleanQuery) {
       queryBuilder = applyMetadataFilters(queryBuilder);
       countQueryBuilder = applyMetadataFilters(countQueryBuilder);
 
@@ -383,115 +389,110 @@ Deno.serve(async (req: Request) => {
 
       // Apply pagination
       queryBuilder = queryBuilder.range(offset, offset + limit - 1);
+    } else if (tech || category) {
+      // Apply filters and sorting for technology/category searches
+      queryBuilder = applyMetadataFilters(queryBuilder);
+      countQueryBuilder = applyMetadataFilters(countQueryBuilder);
 
-      // Execute both queries in parallel
-      const [{ data: websites, error }, { count: totalCount, error: countError }] = await Promise.all([
-        queryBuilder,
-        countQueryBuilder
-      ]);
-
-      if (error) {
-        console.error('Search error:', error);
-        return new Response(
-          JSON.stringify({ error: 'Search failed', details: error.message }),
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+      // Apply sorting
+      if (sortBy === 'url') {
+        queryBuilder = queryBuilder.order('url', { ascending: sortOrder === 'asc' });
+      } else if (sortBy === 'load_time') {
+        queryBuilder = queryBuilder.order('metadata->>page_load_time', { ascending: sortOrder === 'asc' });
+      } else {
+        queryBuilder = queryBuilder.order('last_scraped', { ascending: sortOrder === 'asc' });
       }
 
-      if (countError) {
-        console.error('Count error:', countError);
-      }
+      // Apply pagination
+      queryBuilder = queryBuilder.range(offset, offset + limit - 1);
+    }
 
-      console.log(`📊 Found ${websites?.length || 0} websites, total count: ${totalCount || 0}`);
+    // Execute queries
+    const [{ data: websites, error }, { count: totalCount, error: countError }] = await Promise.all([
+      queryBuilder,
+      countQueryBuilder
+    ]);
 
-      // Transform the data to match frontend expectations
-      const results = websites?.map(website => {
-        // Get unique technologies for this website
-        let technologies = [];
-        
-        if (website.website_technologies && Array.isArray(website.website_technologies)) {
-          technologies = website.website_technologies
-            .map(wt => wt.technologies)
-            .filter((tech, index, self) => 
-              tech && index === self.findIndex(t => t && t.id === tech.id)
-            );
-        }
-
-        return {
-          id: website.id,
-          url: website.url,
-          technologies: technologies.map(tech => ({
-            name: tech.name,
-            category: tech.category
-          })),
-          lastScraped: website.last_scraped,
-          metadata: website.metadata || {}
-        };
-      }) || [];
-
-      // If no results found and query looks like it could be a technology, suggest technology search
-      let suggestions = [];
-      if (results.length === 0 && cleanQuery && !isLikelyURL) {
-        // Search for similar technology names
-        const { data: similarTechs } = await supabaseClient
-          .from('technologies')
-          .select('name, category')
-          .ilike('name', `%${cleanQuery}%`)
-          .limit(5);
-        
-        if (similarTechs && similarTechs.length > 0) {
-          suggestions = similarTechs.map(tech => ({
-            type: 'technology',
-            name: tech.name,
-            category: tech.category,
-            suggestion: `Search for websites using ${tech.name}`
-          }));
-        }
-      }
-
+    if (error) {
+      console.error('Search error:', error);
       return new Response(
-        JSON.stringify({
-          results,
-          suggestions,
-          pagination: {
-            page,
-            limit,
-            total: totalCount || 0,
-            totalPages: Math.ceil((totalCount || 0) / limit)
-          },
-          debug: {
-            query: cleanQuery,
-            originalQuery: query,
-            category,
-            isLikelyURL,
-            isLikelyTechnology,
-            searchType: category ? 'category' : (tech ? 'technology' : 'default'),
-            totalFound: websites?.length || 0,
-            appliedFilters: {
-              responsive: isResponsive,
-              https: isHttps,
-              spa: isSpa,
-              service_worker: hasServiceWorker
-            }
-          }
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ error: 'Search failed', details: error.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`📊 Found ${websites?.length || 0} websites, total count: ${totalCount || 0}`);
+
+    // Transform the data
+    const results = websites?.map(website => {
+      let technologies = [];
+      
+      if (website.website_technologies && Array.isArray(website.website_technologies)) {
+        technologies = website.website_technologies
+          .map(wt => wt.technologies)
+          .filter((tech, index, self) => 
+            tech && index === self.findIndex(t => t && t.id === tech.id)
+          );
+      }
+
+      return {
+        id: website.id,
+        url: website.url,
+        technologies: technologies.map(tech => ({
+          name: tech.name,
+          category: tech.category
+        })),
+        lastScraped: website.last_scraped,
+        metadata: website.metadata || {}
+      };
+    }) || [];
+
+    // Generate suggestions if no results
+    let suggestions = [];
+    if (results.length === 0 && cleanQuery && !isLikelyURL) {
+      const { data: similarTechs } = await supabaseClient
+        .from('technologies')
+        .select('name, category')
+        .ilike('name', `%${cleanQuery}%`)
+        .limit(5);
+      
+      if (similarTechs && similarTechs.length > 0) {
+        suggestions = similarTechs.map(tech => ({
+          type: 'technology',
+          name: tech.name,
+          category: tech.category,
+          suggestion: `Search for websites using ${tech.name}`
+        }));
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        results,
+        suggestions,
+        pagination: {
+          page,
+          limit,
+          total: totalCount || 0,
+          totalPages: Math.ceil((totalCount || 0) / limit)
+        },
+        debug: {
+          query: cleanQuery,
+          originalQuery: query,
+          tech,
+          category,
+          searchType: tech ? 'technology' : (category ? 'category' : 'default'),
+          totalFound: websites?.length || 0
+        }
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('Search function error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error.message }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

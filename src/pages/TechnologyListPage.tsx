@@ -48,28 +48,61 @@ const TechnologyListPage: React.FC = () => {
     setError(null);
 
     try {
-      // First, get technology info
+      // Convert URL slug back to technology name
+      const techNameFromUrl = technologyName
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+        .replace(/\bJs\b/g, 'JS')
+        .replace(/\bCss\b/g, 'CSS')
+        .replace(/\bHtml\b/g, 'HTML')
+        .replace(/\bApi\b/g, 'API')
+        .replace(/\bUi\b/g, 'UI')
+        .replace(/\bCdn\b/g, 'CDN');
+
+      console.log('🔍 Looking for technology:', techNameFromUrl);
+
+      // First, get technology info from database
       const { data: techData } = await supabase
         .from('technologies')
         .select('name, category')
-        .ilike('name', technologyName)
+        .ilike('name', techNameFromUrl)
         .single();
 
       if (!techData) {
-        setError(`Technology "${technologyName}" not found`);
-        setLoading(false);
-        return;
+        // Try alternative matching patterns
+        const { data: altTechData } = await supabase
+          .from('technologies')
+          .select('name, category')
+          .ilike('name', `%${techNameFromUrl}%`)
+          .limit(1)
+          .single();
+
+        if (!altTechData) {
+          setError(`Technology "${techNameFromUrl}" not found`);
+          setLoading(false);
+          return;
+        }
+        
+        setTechnologyInfo({
+          name: altTechData.name,
+          category: altTechData.category,
+          totalCount: 0
+        });
+      } else {
+        setTechnologyInfo({
+          name: techData.name,
+          category: techData.category,
+          totalCount: 0
+        });
       }
 
-      setTechnologyInfo({
-        name: techData.name,
-        category: techData.category,
-        totalCount: 0
-      });
+      const actualTechName = techData?.name || altTechData?.name;
+      console.log('✅ Found technology:', actualTechName);
 
       // Search for websites using this technology
       const params: SearchParams = {
-        tech: techData.name,
+        tech: actualTechName, // Use the exact technology name from database
         sort: (searchParams.get('sort') as 'url' | 'last_scraped' | 'load_time') || 'last_scraped',
         order: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
         page: parseInt(searchParams.get('page') || '1'),
@@ -80,7 +113,11 @@ const TechnologyListPage: React.FC = () => {
         service_worker: searchParams.get('service_worker') || undefined,
       };
 
+      console.log('🔍 Searching with params:', params);
+
       const response = await searchWebsites(params);
+      console.log('📊 Search response:', response);
+      
       setResults(response.results);
       setPagination(response.pagination);
       
