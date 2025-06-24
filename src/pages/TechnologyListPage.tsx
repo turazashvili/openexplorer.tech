@@ -41,6 +41,78 @@ const TechnologyListPage: React.FC = () => {
     }
   }, [technologyName, searchParams]);
 
+  // Enhanced URL slug to technology name conversion
+  const convertUrlToTechnologyName = (urlSlug: string): string[] => {
+    // Convert kebab-case to proper case
+    const basicConversion = urlSlug
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    // Create multiple variations to try
+    const variations = [basicConversion];
+
+    // Special cases for common technologies
+    const specialCases: Record<string, string[]> = {
+      'next-js': ['Next.js', 'NextJS', 'Next JS'],
+      'vue-js': ['Vue.js', 'VueJS', 'Vue JS'],
+      'angular-js': ['AngularJS', 'Angular.js', 'Angular JS'],
+      'react-js': ['React', 'ReactJS', 'React.js'],
+      'node-js': ['Node.js', 'NodeJS', 'Node JS'],
+      'express-js': ['Express.js', 'ExpressJS', 'Express JS'],
+      'd3-js': ['D3.js', 'D3JS', 'D3 JS'],
+      'three-js': ['Three.js', 'ThreeJS', 'Three JS'],
+      'chart-js': ['Chart.js', 'ChartJS', 'Chart JS'],
+      'moment-js': ['Moment.js', 'MomentJS', 'Moment JS'],
+      'lodash-js': ['Lodash', 'Lodash.js'],
+      'jquery': ['jQuery', 'JQuery'],
+      'css': ['CSS'],
+      'html': ['HTML'],
+      'javascript': ['JavaScript', 'JS'],
+      'typescript': ['TypeScript', 'TS'],
+      'tailwind-css': ['Tailwind CSS', 'TailwindCSS'],
+      'bootstrap': ['Bootstrap'],
+      'font-awesome': ['Font Awesome', 'FontAwesome'],
+      'google-analytics': ['Google Analytics'],
+      'google-tag-manager': ['Google Tag Manager', 'GTM'],
+      'wordpress': ['WordPress', 'Word Press'],
+      'woocommerce': ['WooCommerce', 'Woo Commerce'],
+      'web-workers': ['Web Workers'],
+      'service-worker': ['Service Worker'],
+      'lazy-loading': ['Lazy Loading'],
+      'aws-cloudfront': ['AWS CloudFront', 'CloudFront'],
+      'material-icons': ['Material Icons'],
+      'semantic-ui': ['Semantic UI'],
+    };
+
+    // Check if we have special cases for this URL slug
+    if (specialCases[urlSlug.toLowerCase()]) {
+      variations.push(...specialCases[urlSlug.toLowerCase()]);
+    }
+
+    // Add common variations
+    variations.push(
+      // With dots for JS libraries
+      basicConversion.replace(/\bJs\b/g, '.js'),
+      basicConversion.replace(/\bJS\b/g, '.js'),
+      // Without spaces
+      basicConversion.replace(/\s+/g, ''),
+      // All lowercase
+      basicConversion.toLowerCase(),
+      // All uppercase
+      basicConversion.toUpperCase(),
+      // Original slug with spaces
+      urlSlug.replace(/-/g, ' '),
+      // Camel case
+      urlSlug.split('-').map((word, index) => 
+        index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1)
+      ).join('')
+    );
+
+    // Remove duplicates and return
+    return [...new Set(variations)];
+  };
+
   const fetchTechnologyData = async () => {
     if (!technologyName) return;
 
@@ -48,60 +120,62 @@ const TechnologyListPage: React.FC = () => {
     setError(null);
 
     try {
-      // Convert URL slug back to technology name
-      const techNameFromUrl = technologyName
-        .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ')
-        .replace(/\bJs\b/g, 'JS')
-        .replace(/\bCss\b/g, 'CSS')
-        .replace(/\bHtml\b/g, 'HTML')
-        .replace(/\bApi\b/g, 'API')
-        .replace(/\bUi\b/g, 'UI')
-        .replace(/\bCdn\b/g, 'CDN');
+      // Get all possible technology name variations
+      const techNameVariations = convertUrlToTechnologyName(technologyName);
+      
+      console.log('🔍 Looking for technology variations:', techNameVariations);
 
-      console.log('🔍 Looking for technology:', techNameFromUrl);
+      let foundTechnology = null;
 
-      // First, find the exact technology by name (case-insensitive) - using .limit(1) instead of .single()
-      const { data: techData, error: techError } = await supabase
-        .from('technologies')
-        .select('name, category')
-        .ilike('name', techNameFromUrl)
-        .limit(1);
-
-      if (techError || !techData || techData.length === 0) {
-        // Try alternative matching patterns - also using .limit(1) instead of .single()
-        const { data: altTechData, error: altTechError } = await supabase
+      // Try each variation until we find a match
+      for (const variation of techNameVariations) {
+        console.log('🔍 Trying variation:', variation);
+        
+        const { data: techData, error: techError } = await supabase
           .from('technologies')
           .select('name, category')
-          .ilike('name', `%${techNameFromUrl}%`)
+          .ilike('name', variation)
           .limit(1);
 
-        if (altTechError || !altTechData || altTechData.length === 0) {
-          setError(`Technology "${techNameFromUrl}" not found`);
-          setLoading(false);
-          return;
+        if (!techError && techData && techData.length > 0) {
+          foundTechnology = techData[0];
+          console.log('✅ Found technology with variation:', variation, '→', foundTechnology);
+          break;
         }
-        
-        setTechnologyInfo({
-          name: altTechData[0].name,
-          category: altTechData[0].category,
-          totalCount: 0
-        });
-      } else {
-        setTechnologyInfo({
-          name: techData[0].name,
-          category: techData[0].category,
-          totalCount: 0
-        });
       }
 
-      const actualTechName = techData && techData.length > 0 ? techData[0].name : altTechData?.[0]?.name;
-      console.log('✅ Found technology:', actualTechName);
+      // If no exact match, try wildcard search with the first variation
+      if (!foundTechnology) {
+        console.log('🔍 Trying wildcard search...');
+        const { data: wildcardData, error: wildcardError } = await supabase
+          .from('technologies')
+          .select('name, category')
+          .ilike('name', `%${techNameVariations[0]}%`)
+          .limit(1);
+
+        if (!wildcardError && wildcardData && wildcardData.length > 0) {
+          foundTechnology = wildcardData[0];
+          console.log('✅ Found technology with wildcard:', foundTechnology);
+        }
+      }
+
+      if (!foundTechnology) {
+        setError(`Technology "${techNameVariations[0]}" not found`);
+        setLoading(false);
+        return;
+      }
+
+      setTechnologyInfo({
+        name: foundTechnology.name,
+        category: foundTechnology.category,
+        totalCount: 0
+      });
+
+      console.log('✅ Using technology:', foundTechnology.name);
 
       // Search for websites using this technology
       const params: SearchParams = {
-        tech: actualTechName, // Use the exact technology name from database
+        tech: foundTechnology.name, // Use the exact technology name from database
         sort: (searchParams.get('sort') as 'url' | 'last_scraped' | 'load_time') || 'last_scraped',
         order: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
         page: parseInt(searchParams.get('page') || '1'),
