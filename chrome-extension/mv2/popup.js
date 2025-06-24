@@ -57,38 +57,6 @@ class OpenTechExplorerPopup {
         this.updateAutoAnalysisSetting(e.target.checked);
       });
     }
-
-    // Add debug button
-    const debugBtn = document.createElement('button');
-    debugBtn.textContent = '🔍 Debug Metadata';
-    debugBtn.className = 'analyze-btn';
-    debugBtn.style.background = '#6b7280';
-    debugBtn.style.marginTop = '8px';
-    debugBtn.addEventListener('click', () => {
-      this.debugMetadata();
-    });
-    
-    const analyzeBtn = document.getElementById('analyzeBtn');
-    analyzeBtn.parentNode.insertBefore(debugBtn, analyzeBtn.nextSibling);
-  }
-
-  async debugMetadata() {
-    if (!this.currentTab || !this.currentTab.url.startsWith('http')) {
-      this.showError('Cannot debug this page. Please visit a website.');
-      return;
-    }
-
-    try {
-      // Inject debug script
-      await chrome.tabs.executeScript(this.currentTab.id, {
-        file: 'debug.js'
-      });
-      
-      this.showSuccess('Debug info logged to browser console! Open DevTools (F12) to see results.');
-    } catch (error) {
-      console.error('Debug injection failed:', error);
-      this.showError('Failed to inject debug script. Check console for details.');
-    }
   }
 
   isBlockedUrl(url) {
@@ -268,9 +236,6 @@ class OpenTechExplorerPopup {
       this.technologies = results.technologies || [];
       this.metadata = results.metadata || {};
       
-      console.log('📊 Analysis Results:', results);
-      console.log('🔧 Metadata collected:', this.metadata);
-      
       // Only send to database if URL is not blocked
       if (!this.isBlockedUrl(this.currentTab.url)) {
         await this.sendToSupabase(results);
@@ -283,7 +248,6 @@ class OpenTechExplorerPopup {
       this.displayResults();
       
     } catch (error) {
-      console.error('Analysis failed:', error);
       let errorMessage = 'Failed to analyze website. ';
       
       if (error.message) {
@@ -334,8 +298,6 @@ class OpenTechExplorerPopup {
         scraped_at: new Date().toISOString()
       };
 
-      console.log('📤 Sending to Supabase:', payload);
-
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ingest`, {
         method: 'POST',
         headers: {
@@ -351,11 +313,8 @@ class OpenTechExplorerPopup {
       }
 
       const result = await response.json();
-      console.log('✅ Supabase response:', result);
-      
       return result;
     } catch (error) {
-      console.error('Supabase error:', error);
       throw new Error(`Database error: ${error.message}`);
     }
   }
@@ -390,15 +349,6 @@ class OpenTechExplorerPopup {
     // Display metadata if available
     if (Object.keys(this.metadata).length > 0) {
       this.displayMetadata(container);
-    } else {
-      // Show debug info if no metadata
-      const debugSection = document.createElement('div');
-      debugSection.className = 'tech-section';
-      debugSection.innerHTML = `
-        <h3>⚠️ No Metadata Collected</h3>
-        <p style="font-size: 12px; color: #64748b;">Click the "Debug Metadata" button to see what's happening.</p>
-      `;
-      container.appendChild(debugSection);
     }
 
     document.getElementById('results').style.display = 'block';
@@ -421,10 +371,6 @@ class OpenTechExplorerPopup {
             </div>
           `).join('')}
         </div>
-        <details style="margin-top: 12px;">
-          <summary style="font-size: 12px; color: #64748b; cursor: pointer;">View all metadata</summary>
-          <pre style="font-size: 10px; background: #f1f5f9; padding: 8px; margin-top: 8px; border-radius: 4px; overflow: auto; max-height: 128px;">${JSON.stringify(this.metadata, null, 2)}</pre>
-        </details>
       `;
       
       container.appendChild(metadataSection);

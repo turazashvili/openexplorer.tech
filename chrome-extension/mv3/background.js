@@ -102,36 +102,30 @@ class OpenTechExplorerBackground {
       
       // Check exact matches
       if (this.blockedDomains.has(hostname)) {
-        console.log(`Open Tech Explorer: Blocked exact match - ${hostname}`);
         return true;
       }
       
       // Check if hostname starts with blocked patterns
       for (const blocked of this.blockedDomains) {
         if (blocked.endsWith('.') && hostname.startsWith(blocked)) {
-          console.log(`Open Tech Explorer: Blocked IP range - ${hostname} matches ${blocked}`);
           return true;
         }
         
         if (blocked.startsWith('.') && hostname.endsWith(blocked)) {
-          console.log(`Open Tech Explorer: Blocked TLD - ${hostname} matches ${blocked}`);
           return true;
         }
         
         if (blocked.endsWith('.') && hostname.startsWith(blocked)) {
-          console.log(`Open Tech Explorer: Blocked subdomain - ${hostname} matches ${blocked}`);
           return true;
         }
         
         if (fullUrl.includes(blocked)) {
-          console.log(`Open Tech Explorer: Blocked pattern - ${url} contains ${blocked}`);
           return true;
         }
       }
       
       // Check for localhost with any port
       if (hostname === 'localhost' || hostname.startsWith('localhost:')) {
-        console.log(`Open Tech Explorer: Blocked localhost with port - ${hostname}`);
         return true;
       }
       
@@ -149,7 +143,6 @@ class OpenTechExplorerBackground {
           (a === 127) || // 127.0.0.0/8 (loopback)
           (a === 169 && b === 254) // 169.254.0.0/16 (link-local)
         ) {
-          console.log(`Open Tech Explorer: Blocked private IP - ${hostname}`);
           return true;
         }
       }
@@ -157,14 +150,12 @@ class OpenTechExplorerBackground {
       // Check for development ports (common dev server ports)
       const devPorts = [3000, 3001, 4200, 5000, 5173, 8000, 8080, 8888, 9000, 9001];
       if (devPorts.includes(urlObj.port ? parseInt(urlObj.port) : 0)) {
-        console.log(`Open Tech Explorer: Blocked development port - ${urlObj.port}`);
         return true;
       }
       
       return false;
       
     } catch (error) {
-      console.warn(`Open Tech Explorer: Error parsing URL ${url}:`, error);
       return true; // Block invalid URLs
     }
   }
@@ -188,8 +179,6 @@ class OpenTechExplorerBackground {
       this.handleMessage(request, sender, sendResponse);
       return true; // Keep message channel open
     });
-
-    console.log('Open Tech Explorer Background: Full auto-analysis initialized (MV3) with URL filtering');
   }
 
   async loadSettings() {
@@ -254,11 +243,8 @@ class OpenTechExplorerBackground {
     try {
       // Double-check URL is not blocked before analysis
       if (this.isBlockedUrl(url)) {
-        console.log(`Open Tech Explorer: Skipping blocked URL - ${url}`);
         return;
       }
-
-      console.log(`Open Tech Explorer: Auto-analyzing ${hostname}...`);
 
       // Inject content script and analyze
       const results = await this.injectAndAnalyze(tabId);
@@ -280,12 +266,10 @@ class OpenTechExplorerBackground {
 
           // Store results for popup
           this.storeTabResults(tabId, hostname, technologies, metadata);
-
-          console.log(`Open Tech Explorer: ✅ Auto-analyzed ${hostname} - found ${technologies.length} technologies`);
         }
       }
     } catch (error) {
-      console.warn(`Open Tech Explorer: ❌ Auto-analysis failed for ${hostname}:`, error.message);
+      // Silently handle errors in production
     } finally {
       this.pendingAnalysis.delete(tabId);
     }
@@ -315,7 +299,6 @@ class OpenTechExplorerBackground {
 
     // Final check before sending to database
     if (this.isBlockedUrl(`https://${hostname}`)) {
-      console.log(`Open Tech Explorer: Prevented sending blocked hostname to database - ${hostname}`);
       return false;
     }
 
@@ -338,7 +321,6 @@ class OpenTechExplorerBackground {
 
       return response.ok;
     } catch (error) {
-      console.error('Open Tech Explorer: Database error:', error);
       return false;
     }
   }
@@ -382,7 +364,6 @@ class OpenTechExplorerBackground {
       case 'updateSettings':
         this.settings = { ...this.settings, ...request.settings };
         chrome.storage.sync.set(request.settings, () => {
-          console.log('Open Tech Explorer: Settings updated:', this.settings);
           sendResponse({ success: true });
         });
         break;
