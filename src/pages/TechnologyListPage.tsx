@@ -40,75 +40,143 @@ const TechnologyListPage: React.FC = () => {
     }
   }, [technologyName, searchParams]);
 
-  // Enhanced URL slug to technology name conversion
+  // Enhanced URL slug to technology name conversion with comprehensive mapping
   const convertUrlToTechnologyName = (urlSlug: string): string[] => {
-    // Convert kebab-case to proper case
+    // Comprehensive technology name mapping
+    const exactMappings: Record<string, string[]> = {
+      // JavaScript Frameworks
+      'next-js': ['Next.js'],
+      'nextjs': ['Next.js'],
+      'vue-js': ['Vue.js'],
+      'vuejs': ['Vue.js'],
+      'angular-js': ['AngularJS', 'Angular.js'],
+      'angularjs': ['AngularJS'],
+      'angular': ['Angular'],
+      'react-js': ['React'],
+      'reactjs': ['React'],
+      'react': ['React'],
+      'svelte': ['Svelte'],
+      'nuxt-js': ['Nuxt.js'],
+      'nuxtjs': ['Nuxt.js'],
+      'alpine-js': ['Alpine.js'],
+      'alpinejs': ['Alpine.js'],
+      'ember-js': ['Ember.js'],
+      'emberjs': ['Ember.js'],
+      'backbone-js': ['Backbone.js'],
+      'backbonejs': ['Backbone.js'],
+      
+      // CSS Frameworks
+      'tailwind-css': ['Tailwind CSS'],
+      'tailwindcss': ['Tailwind CSS'],
+      'bootstrap': ['Bootstrap'],
+      'bulma': ['Bulma'],
+      'foundation': ['Foundation'],
+      'materialize': ['Materialize'],
+      'semantic-ui': ['Semantic UI'],
+      
+      // Content Management
+      'wordpress': ['WordPress'],
+      'word-press': ['WordPress'],
+      'drupal': ['Drupal'],
+      'joomla': ['Joomla'],
+      'shopify': ['Shopify'],
+      'squarespace': ['Squarespace'],
+      'wix': ['Wix'],
+      'webflow': ['Webflow'],
+      'magento': ['Magento'],
+      'ghost': ['Ghost'],
+      
+      // Analytics
+      'google-analytics': ['Google Analytics'],
+      'google-tag-manager': ['Google Tag Manager'],
+      'gtm': ['Google Tag Manager'],
+      'hotjar': ['Hotjar'],
+      'mixpanel': ['Mixpanel'],
+      'facebook-pixel': ['Facebook Pixel'],
+      'segment': ['Segment'],
+      
+      // CDN
+      'cloudflare': ['Cloudflare'],
+      'aws-cloudfront': ['AWS CloudFront'],
+      'cloudfront': ['AWS CloudFront'],
+      'jsdelivr': ['jsDelivr'],
+      'js-delivr': ['jsDelivr'],
+      'unpkg': ['unpkg'],
+      
+      // E-commerce
+      'woocommerce': ['WooCommerce'],
+      'woo-commerce': ['WooCommerce'],
+      'stripe': ['Stripe'],
+      'paypal': ['PayPal'],
+      'square': ['Square'],
+      
+      // Development Tools
+      'lodash': ['Lodash'],
+      'moment-js': ['Moment.js'],
+      'momentjs': ['Moment.js'],
+      'd3-js': ['D3.js'],
+      'd3js': ['D3.js'],
+      'three-js': ['Three.js'],
+      'threejs': ['Three.js'],
+      'chart-js': ['Chart.js'],
+      'chartjs': ['Chart.js'],
+      'axios': ['Axios'],
+      'webpack': ['Webpack'],
+      'vite': ['Vite'],
+      'parcel': ['Parcel'],
+      
+      // UI Libraries
+      'font-awesome': ['Font Awesome'],
+      'fontawesome': ['Font Awesome'],
+      'material-icons': ['Material Icons'],
+      'feather-icons': ['Feather Icons'],
+      'google-fonts': ['Google Fonts'],
+      
+      // JavaScript Libraries
+      'jquery': ['jQuery'],
+      'j-query': ['jQuery'],
+      
+      // Performance
+      'lazy-loading': ['Lazy Loading'],
+      'service-worker': ['Service Worker'],
+      'web-workers': ['Web Workers'],
+      
+      // Monitoring
+      'sentry': ['Sentry'],
+      'logrocket': ['LogRocket'],
+      'intercom': ['Intercom'],
+      'zendesk': ['Zendesk'],
+      'drift': ['Drift'],
+    };
+
+    // Check for exact mapping first
+    const lowerSlug = urlSlug.toLowerCase();
+    if (exactMappings[lowerSlug]) {
+      return exactMappings[lowerSlug];
+    }
+
+    // Fallback to basic conversion with multiple variations
     const basicConversion = urlSlug
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
 
-    // Create multiple variations to try
-    const variations = [basicConversion];
-
-    // Special cases for common technologies
-    const specialCases: Record<string, string[]> = {
-      'next-js': ['Next.js', 'NextJS', 'Next JS'],
-      'vue-js': ['Vue.js', 'VueJS', 'Vue JS'],
-      'angular-js': ['AngularJS', 'Angular.js', 'Angular JS'],
-      'react-js': ['React', 'ReactJS', 'React.js'],
-      'node-js': ['Node.js', 'NodeJS', 'Node JS'],
-      'express-js': ['Express.js', 'ExpressJS', 'Express JS'],
-      'd3-js': ['D3.js', 'D3JS', 'D3 JS'],
-      'three-js': ['Three.js', 'ThreeJS', 'Three JS'],
-      'chart-js': ['Chart.js', 'ChartJS', 'Chart JS'],
-      'moment-js': ['Moment.js', 'MomentJS', 'Moment JS'],
-      'lodash-js': ['Lodash', 'Lodash.js'],
-      'jquery': ['jQuery', 'JQuery'],
-      'css': ['CSS'],
-      'html': ['HTML'],
-      'javascript': ['JavaScript', 'JS'],
-      'typescript': ['TypeScript', 'TS'],
-      'tailwind-css': ['Tailwind CSS', 'TailwindCSS'],
-      'bootstrap': ['Bootstrap'],
-      'font-awesome': ['Font Awesome', 'FontAwesome'],
-      'google-analytics': ['Google Analytics'],
-      'google-tag-manager': ['Google Tag Manager', 'GTM'],
-      'wordpress': ['WordPress', 'Word Press'],
-      'woocommerce': ['WooCommerce', 'Woo Commerce'],
-      'web-workers': ['Web Workers'],
-      'service-worker': ['Service Worker'],
-      'lazy-loading': ['Lazy Loading'],
-      'aws-cloudfront': ['AWS CloudFront', 'CloudFront'],
-      'material-icons': ['Material Icons'],
-      'semantic-ui': ['Semantic UI'],
-    };
-
-    // Check if we have special cases for this URL slug
-    if (specialCases[urlSlug.toLowerCase()]) {
-      variations.push(...specialCases[urlSlug.toLowerCase()]);
-    }
-
-    // Add common variations
-    variations.push(
-      // With dots for JS libraries
+    const variations = [
+      basicConversion,
+      // With .js suffix
       basicConversion.replace(/\bJs\b/g, '.js'),
-      basicConversion.replace(/\bJS\b/g, '.js'),
       // Without spaces
       basicConversion.replace(/\s+/g, ''),
       // All lowercase
       basicConversion.toLowerCase(),
-      // All uppercase
-      basicConversion.toUpperCase(),
       // Original slug with spaces
       urlSlug.replace(/-/g, ' '),
       // Camel case
       urlSlug.split('-').map((word, index) => 
         index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1)
       ).join('')
-    );
+    ];
 
-    // Remove duplicates and return
     return [...new Set(variations)];
   };
 
