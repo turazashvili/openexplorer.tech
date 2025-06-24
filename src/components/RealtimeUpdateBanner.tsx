@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, X } from 'lucide-react';
+import { RefreshCw, X, Info } from 'lucide-react';
 
 interface RealtimeUpdateBannerProps {
   pendingUpdates: number;
@@ -49,9 +49,15 @@ const RealtimeUpdateBanner: React.FC<RealtimeUpdateBannerProps> = ({
             <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
           </div>
           <div>
-            <p className="text-sm font-medium text-blue-900">
-              New data available
-            </p>
+            <div className="flex items-center space-x-2">
+              <p className="text-sm font-medium text-blue-900">
+                New data available
+              </p>
+              <div className="flex items-center space-x-1 text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
+                <Info className="h-3 w-3" />
+                <span>Auto-refresh disabled</span>
+              </div>
+            </div>
             <p className="text-sm text-blue-700">
               {getUpdateMessage()}
             </p>
@@ -64,7 +70,7 @@ const RealtimeUpdateBanner: React.FC<RealtimeUpdateBannerProps> = ({
             className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
           >
             <RefreshCw className="h-4 w-4 mr-1" />
-            Refresh
+            Refresh now
           </button>
           <button
             onClick={onDismiss}

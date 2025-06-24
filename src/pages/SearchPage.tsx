@@ -6,6 +6,7 @@ import ResultsTable from '../components/ResultsTable';
 import Pagination from '../components/Pagination';
 import RealtimeNotifications from '../components/RealtimeNotifications';
 import RealtimeUpdateBanner from '../components/RealtimeUpdateBanner';
+import AutoRefreshSettings from '../components/AutoRefreshSettings';
 import { searchWebsites, SearchParams, WebsiteResult } from '../lib/api';
 import { useRealtimeStats, useRealtimeSearch, useRealtimeWebsiteList } from '../hooks/useRealtimeData';
 
@@ -23,7 +24,14 @@ const SearchPage: React.FC = () => {
   // Real-time hooks
   const realtimeStats = useRealtimeStats();
   const { lastUpdate, recentChanges, resetChanges } = useRealtimeSearch(searchParams);
-  const { pendingUpdates, refreshResults, hasPendingUpdates } = useRealtimeWebsiteList(results);
+  const { 
+    pendingUpdates, 
+    refreshResults, 
+    hasPendingUpdates, 
+    shouldAutoRefresh,
+    autoRefreshEnabled,
+    setAutoRefreshEnabled
+  } = useRealtimeWebsiteList(results);
 
   const currentQuery = searchParams.get('q') || '';
   const currentFilters = {
@@ -40,18 +48,24 @@ const SearchPage: React.FC = () => {
     performSearch();
   }, [searchParams]);
 
-  // Auto-refresh when real-time updates are detected (but only if user hasn't interacted recently)
+  // Auto-refresh logic with smart timing
   useEffect(() => {
-    const autoRefreshDelay = 10000; // 10 seconds
+    if (!hasPendingUpdates || !autoRefreshEnabled || loading) return;
+
+    // Immediate refresh for first update, then use smart delays
+    const getRefreshDelay = () => {
+      if (pendingUpdates === 1) return 2000; // 2 seconds for first update
+      if (shouldAutoRefresh()) return 5000; // 5 seconds if user is inactive
+      return 15000; // 15 seconds if user is active
+    };
+
     const timer = setTimeout(() => {
-      if (hasPendingUpdates && !loading) {
-        console.log('🔄 Auto-refreshing due to real-time updates');
-        performSearch(true);
-      }
-    }, autoRefreshDelay);
+      console.log('🔄 Auto-refreshing due to real-time updates');
+      performSearch(true);
+    }, getRefreshDelay());
 
     return () => clearTimeout(timer);
-  }, [lastUpdate, hasPendingUpdates, loading]);
+  }, [lastUpdate, hasPendingUpdates, autoRefreshEnabled, loading, pendingUpdates, shouldAutoRefresh]);
 
   const performSearch = async (isAutoRefresh = false) => {
     if (!isAutoRefresh) {
@@ -80,6 +94,10 @@ const SearchPage: React.FC = () => {
       
       // Update real-time list
       refreshResults(response.results);
+      
+      if (isAutoRefresh) {
+        console.log('✅ Auto-refresh completed');
+      }
       
       console.log('📊 Search response:', response);
     } catch (error) {
@@ -190,6 +208,7 @@ const SearchPage: React.FC = () => {
             <div className="mt-4 text-xs text-green-600 flex items-center justify-center space-x-1">
               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
               <span>Live updates enabled</span>
+              {autoRefreshEnabled && <span>• Auto-refresh on</span>}
             </div>
           )}
         </div>
@@ -218,7 +237,12 @@ const SearchPage: React.FC = () => {
               </p>
             </div>
             
-            <div className="flex-shrink-0">
+            <div className="flex items-center space-x-3">
+              <AutoRefreshSettings 
+                enabled={autoRefreshEnabled}
+                onToggle={setAutoRefreshEnabled}
+                pendingUpdates={pendingUpdates}
+              />
               <SearchFilters 
                 onFiltersChange={handleFiltersChange}
                 currentFilters={currentFilters}
@@ -226,13 +250,15 @@ const SearchPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Real-time Update Banner */}
-          <RealtimeUpdateBanner
-            pendingUpdates={pendingUpdates}
-            onRefresh={handleRefreshClick}
-            onDismiss={handleDismissUpdates}
-            recentChanges={recentChanges}
-          />
+          {/* Real-time Update Banner - Only show if auto-refresh is disabled */}
+          {!autoRefreshEnabled && (
+            <RealtimeUpdateBanner
+              pendingUpdates={pendingUpdates}
+              onRefresh={handleRefreshClick}
+              onDismiss={handleDismissUpdates}
+              recentChanges={recentChanges}
+            />
+          )}
           
           <ResultsTable results={results} loading={loading} />
           

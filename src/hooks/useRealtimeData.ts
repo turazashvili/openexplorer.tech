@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { WebsiteResult } from '../lib/api';
 
@@ -192,15 +192,35 @@ export function useRealtimeSearch(searchParams: URLSearchParams) {
   return { lastUpdate, recentChanges, resetChanges };
 }
 
-// Hook for real-time website list updates
+// Hook for real-time website list updates with auto-refresh
 export function useRealtimeWebsiteList(initialResults: WebsiteResult[]) {
   const [results, setResults] = useState<WebsiteResult[]>(initialResults);
   const [pendingUpdates, setPendingUpdates] = useState<number>(0);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState<boolean>(true);
+  const lastUserInteraction = useRef<number>(Date.now());
 
   useEffect(() => {
     setResults(initialResults);
     setPendingUpdates(0);
   }, [initialResults]);
+
+  // Track user interactions to pause auto-refresh when user is actively browsing
+  useEffect(() => {
+    const handleUserActivity = () => {
+      lastUserInteraction.current = Date.now();
+    };
+
+    // Listen for user interactions
+    window.addEventListener('scroll', handleUserActivity);
+    window.addEventListener('click', handleUserActivity);
+    window.addEventListener('keydown', handleUserActivity);
+
+    return () => {
+      window.removeEventListener('scroll', handleUserActivity);
+      window.removeEventListener('click', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+    };
+  }, []);
 
   useEffect(() => {
     const subscription = supabase
@@ -231,11 +251,24 @@ export function useRealtimeWebsiteList(initialResults: WebsiteResult[]) {
     setPendingUpdates(0);
   }, []);
 
+  // Check if user has been inactive for auto-refresh
+  const shouldAutoRefresh = useCallback(() => {
+    if (!autoRefreshEnabled) return false;
+    
+    const timeSinceLastInteraction = Date.now() - lastUserInteraction.current;
+    const inactivityThreshold = 30000; // 30 seconds of inactivity
+    
+    return timeSinceLastInteraction > inactivityThreshold;
+  }, [autoRefreshEnabled]);
+
   return { 
     results, 
     pendingUpdates, 
     refreshResults,
-    hasPendingUpdates: pendingUpdates > 0
+    hasPendingUpdates: pendingUpdates > 0,
+    shouldAutoRefresh,
+    autoRefreshEnabled,
+    setAutoRefreshEnabled
   };
 }
 
