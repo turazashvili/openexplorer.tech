@@ -49,7 +49,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ onFiltersChange, currentF
 
   const handleFilterChange = (key: string, value: string) => {
     const newFilters = { ...currentFilters };
-    if (value === '') {
+    if (value === '' || value === undefined) {
       delete newFilters[key as keyof typeof newFilters];
     } else {
       newFilters[key as keyof typeof newFilters] = value;
@@ -58,10 +58,17 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ onFiltersChange, currentF
   };
 
   const clearFilters = () => {
+    // Clear all filters by passing an empty object
     onFiltersChange({});
+    setIsOpen(false); // Close the filter panel after clearing
   };
 
-  const hasActiveFilters = Object.keys(currentFilters).length > 0;
+  // Count only non-sorting filters for the badge
+  const activeFilterCount = Object.keys(currentFilters).filter(key => 
+    key !== 'sort' && key !== 'order' && currentFilters[key as keyof typeof currentFilters]
+  ).length;
+
+  const hasActiveFilters = activeFilterCount > 0;
 
   return (
     <div className="relative">
@@ -77,7 +84,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ onFiltersChange, currentF
         <span className="hidden sm:inline">Filters</span>
         {hasActiveFilters && (
           <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-0.5">
-            {Object.keys(currentFilters).length}
+            {activeFilterCount}
           </span>
         )}
       </button>
@@ -99,14 +106,14 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ onFiltersChange, currentF
                   {hasActiveFilters && (
                     <button
                       onClick={clearFilters}
-                      className="text-sm text-blue-600 hover:text-blue-700"
+                      className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
                     >
                       Clear all
                     </button>
                   )}
                   <button
                     onClick={() => setIsOpen(false)}
-                    className="md:hidden p-1 hover:bg-gray-100 rounded"
+                    className="md:hidden p-1 hover:bg-gray-100 rounded transition-colors"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -118,6 +125,9 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ onFiltersChange, currentF
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Technology Category
                 </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Filter websites by the types of technologies they use
+                </p>
                 <select
                   value={currentFilters.category || ''}
                   onChange={(e) => handleFilterChange('category', e.target.value)}
@@ -151,33 +161,33 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ onFiltersChange, currentF
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">HTTPS</label>
+                    <label className="block text-sm text-gray-600 mb-1">HTTPS Security</label>
                     <select
                       value={currentFilters.https || ''}
                       onChange={(e) => handleFilterChange('https', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Any</option>
-                      <option value="true">HTTPS</option>
-                      <option value="false">HTTP</option>
+                      <option value="true">HTTPS (Secure)</option>
+                      <option value="false">HTTP (Not Secure)</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Single Page App</label>
+                    <label className="block text-sm text-gray-600 mb-1">Application Type</label>
                     <select
                       value={currentFilters.spa || ''}
                       onChange={(e) => handleFilterChange('spa', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Any</option>
-                      <option value="true">SPA</option>
-                      <option value="false">Traditional</option>
+                      <option value="true">Single Page App (SPA)</option>
+                      <option value="false">Traditional Multi-page</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Service Worker</label>
+                    <label className="block text-sm text-gray-600 mb-1">Progressive Web App Features</label>
                     <select
                       value={currentFilters.service_worker || ''}
                       onChange={(e) => handleFilterChange('service_worker', e.target.value)}
