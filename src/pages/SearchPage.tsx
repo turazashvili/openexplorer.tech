@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import SearchFilters from '../components/SearchFilters';
@@ -20,6 +20,9 @@ const SearchPage: React.FC = () => {
     total: 0,
     totalPages: 0,
   });
+
+  // Ref for scrolling to results section
+  const resultsRef = useRef<HTMLElement>(null);
 
   // Real-time hooks
   const realtimeStats = useRealtimeStats();
@@ -111,6 +114,18 @@ const SearchPage: React.FC = () => {
     }
   };
 
+  const scrollToResults = () => {
+    if (resultsRef.current) {
+      const headerHeight = 64; // Account for sticky header
+      const elementTop = resultsRef.current.offsetTop - headerHeight;
+      
+      window.scrollTo({
+        top: elementTop,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const handleSearch = (query: string) => {
     const newParams = new URLSearchParams();
     if (query.trim()) {
@@ -119,6 +134,11 @@ const SearchPage: React.FC = () => {
     // Reset page when searching
     setSearchParams(newParams);
     resetChanges(); // Reset change counters
+    
+    // Scroll to results after a short delay to allow the search to start
+    setTimeout(() => {
+      scrollToResults();
+    }, 100);
   };
 
   const handleFiltersChange = (filters: any) => {
@@ -144,12 +164,22 @@ const SearchPage: React.FC = () => {
     
     setSearchParams(newParams);
     resetChanges(); // Reset change counters
+    
+    // Scroll to results when filters change
+    setTimeout(() => {
+      scrollToResults();
+    }, 100);
   };
 
   const handlePageChange = (page: number) => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('page', page.toString());
     setSearchParams(newParams);
+    
+    // Scroll to top of results when changing pages
+    setTimeout(() => {
+      scrollToResults();
+    }, 100);
   };
 
   const handleRefreshClick = () => {
@@ -215,7 +245,7 @@ const SearchPage: React.FC = () => {
       </section>
 
       {/* Results Section */}
-      <section className="py-8 sm:py-12 lg:py-16 px-4 sm:px-6 lg:px-8">
+      <section ref={resultsRef} className="py-8 sm:py-12 lg:py-16 px-4 sm:px-6 lg:px-8 scroll-mt-16">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
             <div className="flex-1 min-w-0">
