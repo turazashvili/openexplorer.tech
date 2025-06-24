@@ -9,6 +9,7 @@ const corsHeaders = {
 interface IngestPayload {
   url: string;
   technologies: string[];
+  metadata?: Record<string, any>;
   scraped_at?: string;
 }
 
@@ -26,7 +27,7 @@ Deno.serve(async (req: Request) => {
     );
 
     // Parse request body
-    const { url, technologies, scraped_at }: IngestPayload = await req.json();
+    const { url, technologies, metadata = {}, scraped_at }: IngestPayload = await req.json();
 
     if (!url || !technologies || !Array.isArray(technologies)) {
       return new Response(
@@ -42,14 +43,19 @@ Deno.serve(async (req: Request) => {
     const cleanUrl = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
     const scrapedAt = scraped_at ? new Date(scraped_at) : new Date();
 
-    // Upsert website
+    // Prepare website data with metadata
+    const websiteData = {
+      url: cleanUrl,
+      last_scraped: scrapedAt.toISOString(),
+      // Store metadata as JSONB
+      metadata: metadata
+    };
+
+    // Upsert website with metadata
     const { data: website, error: websiteError } = await supabaseClient
       .from('websites')
       .upsert(
-        { 
-          url: cleanUrl, 
-          last_scraped: scrapedAt.toISOString() 
-        },
+        websiteData,
         { 
           onConflict: 'url',
           ignoreDuplicates: false 
@@ -61,7 +67,7 @@ Deno.serve(async (req: Request) => {
     if (websiteError) {
       console.error('Website upsert error:', websiteError);
       return new Response(
-        JSON.stringify({ error: 'Failed to upsert website' }),
+        JSON.stringify({ error: 'Failed to upsert website', details: websiteError.message }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -69,20 +75,23 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Process technologies
+    // Process technologies with enhanced categorization
     const techResults = [];
     const websiteTechLinks = [];
 
     for (const techName of technologies) {
       if (!techName.trim()) continue;
 
-      // Upsert technology
+      // Determine category based on technology name
+      const category = categorizeTechnology(techName.trim());
+
+      // Upsert technology with improved categorization
       const { data: tech, error: techError } = await supabaseClient
         .from('technologies')
         .upsert(
           { 
             name: techName.trim(),
-            category: 'Other' // Default category, can be updated later
+            category: category
           },
           { 
             onConflict: 'name',
@@ -104,6 +113,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Remove old technology links for this website
+    await supabaseClient
+      .from('website_technologies')
+      .delete()
+      .eq('website_id', website.id);
+
     // Link website to technologies
     if (websiteTechLinks.length > 0) {
       const { error: linkError } = await supabaseClient
@@ -123,7 +138,8 @@ Deno.serve(async (req: Request) => {
         success: true,
         website: website,
         technologies_processed: techResults.length,
-        technologies: techResults
+        technologies: techResults,
+        metadata_stored: Object.keys(metadata).length
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -133,7 +149,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Ingest function error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -141,3 +157,55 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
+
+function categorizeechnology(techName: string): string {
+  const categories = {
+    'JavaScript Framework': [
+      'React', 'Vue.js', 'Angular', 'Svelte', 'Next.js', 'Nuxt.js', 
+      'Alpine.js', 'Ember.js', 'Backbone.js'
+    ],
+    'CSS Framework': [
+      'Bootstrap', 'Tailwind CSS', 'Bulma', 'Foundation', 
+      'Materialize', 'Semantic UI'
+    ],
+    'Content Management': [
+      'WordPress', 'Drupal', 'Joomla', 'Shopify', 'Squarespace', 
+      'Wix', 'Webflow', 'Magento', 'Ghost'
+    ],
+    'Analytics': [
+      'Google Analytics', 'Google Tag Manager', 'Hotjar', 'Mixpanel', 
+      'Facebook Pixel', 'Segment'
+    ],
+    'CDN': [
+      'Cloudflare', 'AWS CloudFront', 'jsDelivr', 'unpkg', 
+      'KeyCDN', 'MaxCDN'
+    ],
+    'E-commerce': [
+      'WooCommerce', 'Stripe', 'PayPal', 'Square'
+    ],
+    'Development Tool': [
+      'Lodash', 'Moment.js', 'D3.js', 'Three.js', 'Chart.js', 
+      'Axios', 'Webpack', 'Vite', 'Parcel'
+    ],
+    'UI Library': [
+      'Font Awesome', 'Material Icons', 'Feather Icons', 'Google Fonts'
+    ],
+    'Monitoring': [
+      'Sentry', 'LogRocket', 'Intercom', 'Zendesk', 'Drift'
+    ],
+    'Performance': [
+      'Lazy Loading', 'Service Worker', 'Web Workers'
+    ],
+    'JavaScript Library': [
+      'jQuery'
+    ]
+  };
+
+  for (const [category, technologies] of Object.entries(categories)) {
+    if (technologies.includes(techName)) {
+      return category;
+    }
+  }
+
+  return 'Other';
+}

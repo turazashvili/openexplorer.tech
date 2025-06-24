@@ -1,4 +1,4 @@
-// Background script for Manifest V2 with full auto-analysis
+// Enhanced background script with full tab monitoring and auto-analysis
 class TechLookupBackground {
   constructor() {
     this.settings = { autoAnalysis: true };
@@ -27,7 +27,7 @@ class TechLookupBackground {
       return true; // Keep message channel open
     });
 
-    console.log('TechLookup Background (MV2): Full auto-analysis initialized');
+    console.log('TechLookup Background: Full auto-analysis initialized');
   }
 
   async loadSettings() {

@@ -1,4 +1,4 @@
-// Enhanced popup with full background analysis integration
+// Enhanced popup with metadata display and improved technology categorization
 const SUPABASE_URL = 'https://catnatrzpjqcwqnppgkf.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhdG5hdHJ6cGpxY3dxbnBwZ2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3ODE2MTEsImV4cCI6MjA2NjM1NzYxMX0.RO4IJkuMNuLoE70UC2-b1JoGH2eXsFkED7HFpOlMofs';
 
@@ -6,6 +6,7 @@ class TechLookupPopup {
   constructor() {
     this.currentTab = null;
     this.technologies = [];
+    this.metadata = {};
     this.settings = { autoAnalysis: true };
     this.backgroundResults = null;
     this.init();
@@ -91,6 +92,7 @@ class TechLookupPopup {
         if (response && response.technologies) {
           this.backgroundResults = response;
           this.technologies = response.technologies;
+          this.metadata = response.metadata || {};
           this.displayResults();
           
           const source = response.source === 'background' ? 'auto-analyzed' : 'analyzed';
@@ -157,6 +159,7 @@ class TechLookupPopup {
       // Inject content script to analyze the page
       const results = await this.injectAnalyzer();
       this.technologies = results.technologies || [];
+      this.metadata = results.metadata || {};
       
       // Send data to Supabase
       await this.sendToSupabase(results);
@@ -213,6 +216,7 @@ class TechLookupPopup {
       const payload = {
         url: hostname,
         technologies: data.technologies || [],
+        metadata: data.metadata || {},
         scraped_at: new Date().toISOString()
       };
 
@@ -249,12 +253,13 @@ class TechLookupPopup {
     // Group technologies by category
     const grouped = this.groupTechnologies(this.technologies);
     
+    // Display technology groups
     Object.entries(grouped).forEach(([category, techs]) => {
       const section = document.createElement('div');
       section.className = 'tech-section';
       
       section.innerHTML = `
-        <h3>${category}</h3>
+        <h3>${category} (${techs.length})</h3>
         <div class="tech-tags">
           ${techs.map(tech => `<span class="tech-tag">${tech}</span>`).join('')}
         </div>
@@ -263,16 +268,172 @@ class TechLookupPopup {
       container.appendChild(section);
     });
 
+    // Display metadata if available
+    if (Object.keys(this.metadata).length > 0) {
+      this.displayMetadata(container);
+    }
+
     document.getElementById('results').style.display = 'block';
+  }
+
+  displayMetadata(container) {
+    const metadataSection = document.createElement('div');
+    metadataSection.className = 'tech-section';
+    
+    const interestingMetadata = this.getInterestingMetadata();
+    
+    if (interestingMetadata.length > 0) {
+      metadataSection.innerHTML = `
+        <h3>📊 Website Insights</h3>
+        <div class="metadata-items">
+          ${interestingMetadata.map(item => `
+            <div class="metadata-item">
+              <span class="metadata-label">${item.label}:</span>
+              <span class="metadata-value">${item.value}</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      
+      container.appendChild(metadataSection);
+    }
+  }
+
+  getInterestingMetadata() {
+    const items = [];
+    
+    // Page characteristics
+    if (this.metadata.is_responsive !== undefined) {
+      items.push({
+        label: 'Responsive Design',
+        value: this.metadata.is_responsive ? '✅ Yes' : '❌ No'
+      });
+    }
+    
+    if (this.metadata.is_https !== undefined) {
+      items.push({
+        label: 'HTTPS',
+        value: this.metadata.is_https ? '🔒 Secure' : '⚠️ Not Secure'
+      });
+    }
+    
+    if (this.metadata.likely_spa !== undefined) {
+      items.push({
+        label: 'Single Page App',
+        value: this.metadata.likely_spa ? '✅ Likely' : '❌ Traditional'
+      });
+    }
+    
+    // Performance metrics
+    if (this.metadata.page_load_time) {
+      items.push({
+        label: 'Load Time',
+        value: `${Math.round(this.metadata.page_load_time)}ms`
+      });
+    }
+    
+    if (this.metadata.script_count) {
+      items.push({
+        label: 'Scripts',
+        value: this.metadata.script_count
+      });
+    }
+    
+    if (this.metadata.stylesheet_count) {
+      items.push({
+        label: 'Stylesheets',
+        value: this.metadata.stylesheet_count
+      });
+    }
+    
+    if (this.metadata.external_script_count) {
+      items.push({
+        label: 'External Scripts',
+        value: this.metadata.external_script_count
+      });
+    }
+    
+    // Optimization features
+    if (this.metadata.uses_lazy_loading) {
+      items.push({
+        label: 'Lazy Loading',
+        value: '✅ Enabled'
+      });
+    }
+    
+    if (this.metadata.has_service_worker) {
+      items.push({
+        label: 'Service Worker',
+        value: '✅ Active'
+      });
+    }
+    
+    if (this.metadata.uses_google_fonts) {
+      items.push({
+        label: 'Google Fonts',
+        value: '✅ Used'
+      });
+    }
+    
+    // SEO and accessibility
+    if (this.metadata.has_open_graph) {
+      items.push({
+        label: 'Open Graph',
+        value: '✅ Present'
+      });
+    }
+    
+    if (this.metadata.has_twitter_cards) {
+      items.push({
+        label: 'Twitter Cards',
+        value: '✅ Present'
+      });
+    }
+    
+    if (this.metadata.meta_description_length) {
+      items.push({
+        label: 'Meta Description',
+        value: `${this.metadata.meta_description_length} chars`
+      });
+    }
+    
+    // Versions (if available)
+    if (this.metadata.react_version) {
+      items.push({
+        label: 'React Version',
+        value: this.metadata.react_version
+      });
+    }
+    
+    if (this.metadata.vue_version) {
+      items.push({
+        label: 'Vue Version',
+        value: this.metadata.vue_version
+      });
+    }
+    
+    if (this.metadata.jquery_version) {
+      items.push({
+        label: 'jQuery Version',
+        value: this.metadata.jquery_version
+      });
+    }
+    
+    return items.slice(0, 8); // Limit to most important items
   }
 
   groupTechnologies(technologies) {
     const categories = {
-      'JavaScript Frameworks': ['React', 'Vue.js', 'Angular', 'Svelte', 'Next.js', 'Nuxt.js'],
-      'CSS Frameworks': ['Bootstrap', 'Tailwind CSS', 'Bulma', 'Foundation'],
-      'Content Management': ['WordPress', 'Drupal', 'Joomla', 'Shopify', 'Squarespace'],
-      'Analytics': ['Google Analytics', 'Google Tag Manager', 'Hotjar', 'Mixpanel'],
-      'CDN': ['Cloudflare', 'AWS CloudFront', 'KeyCDN', 'MaxCDN'],
+      'JavaScript Frameworks': ['React', 'Vue.js', 'Angular', 'Svelte', 'Next.js', 'Nuxt.js', 'Alpine.js', 'Ember.js', 'Backbone.js'],
+      'CSS Frameworks': ['Bootstrap', 'Tailwind CSS', 'Bulma', 'Foundation', 'Materialize', 'Semantic UI'],
+      'Content Management': ['WordPress', 'Drupal', 'Joomla', 'Shopify', 'Squarespace', 'Wix', 'Webflow', 'Magento', 'Ghost'],
+      'Analytics & Tracking': ['Google Analytics', 'Google Tag Manager', 'Hotjar', 'Mixpanel', 'Facebook Pixel', 'Segment'],
+      'CDN & Infrastructure': ['Cloudflare', 'AWS CloudFront', 'jsDelivr', 'unpkg', 'KeyCDN', 'MaxCDN'],
+      'E-commerce & Payments': ['WooCommerce', 'Stripe', 'PayPal', 'Square'],
+      'Development Tools': ['Lodash', 'Moment.js', 'D3.js', 'Three.js', 'Chart.js', 'Axios', 'Webpack', 'Vite', 'Parcel'],
+      'UI & Icons': ['Font Awesome', 'Material Icons', 'Feather Icons', 'Google Fonts'],
+      'Monitoring & Support': ['Sentry', 'LogRocket', 'Intercom', 'Zendesk', 'Drift'],
+      'Performance & Features': ['Lazy Loading', 'Service Worker', 'Web Workers'],
       'Other': []
     };
 
