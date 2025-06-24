@@ -7,7 +7,8 @@
   "permissions": [
     "activeTab",
     "tabs",
-    "storage"
+    "storage",
+    "scripting"
   ],
   
   "host_permissions": [
@@ -45,7 +46,7 @@
   
   "web_accessible_resources": [
     {
-      "resources": ["detector.js"],
+      "resources": ["detector.js", "debug.js"],
       "matches": ["<all_urls>"]
     }
   ]

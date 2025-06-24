@@ -77,9 +77,10 @@ class TechLookupPopup {
     }
 
     try {
-      // Inject debug script
-      await chrome.tabs.executeScript(this.currentTab.id, {
-        file: 'debug.js'
+      // For MV3, we need to use chrome.scripting.executeScript
+      await chrome.scripting.executeScript({
+        target: { tabId: this.currentTab.id },
+        files: ['debug.js']
       });
       
       this.showSuccess('Debug info logged to browser console! Open DevTools (F12) to see results.');

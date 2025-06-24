@@ -1,4 +1,4 @@
-// Enhanced background script with full tab monitoring and auto-analysis
+// Enhanced background script with full tab monitoring and auto-analysis for MV3
 class TechLookupBackground {
   constructor() {
     this.settings = { autoAnalysis: true };
@@ -27,7 +27,7 @@ class TechLookupBackground {
       return true; // Keep message channel open
     });
 
-    console.log('TechLookup Background: Full auto-analysis initialized');
+    console.log('TechLookup Background: Full auto-analysis initialized (MV3)');
   }
 
   async loadSettings() {
@@ -78,7 +78,7 @@ class TechLookupBackground {
 
     if (cached && (now - cached.timestamp) < oneHour) {
       // Use cached results
-      this.storeTabResults(tabId, hostname, cached.technologies);
+      this.storeTabResults(tabId, hostname, cached.technologies, cached.metadata);
       return;
     }
 
@@ -96,19 +96,21 @@ class TechLookupBackground {
       
       if (results && results.success && results.technologies) {
         const technologies = results.technologies;
+        const metadata = results.metadata || {};
         
         // Send to database
-        const dbSuccess = await this.sendToDatabase(hostname, technologies);
+        const dbSuccess = await this.sendToDatabase(hostname, technologies, metadata);
         
         if (dbSuccess) {
           // Cache the results
           this.analysisCache.set(hostname, {
             technologies,
+            metadata,
             timestamp: Date.now()
           });
 
           // Store results for popup
-          this.storeTabResults(tabId, hostname, technologies);
+          this.storeTabResults(tabId, hostname, technologies, metadata);
 
           console.log(`TechLookup: ✅ Auto-analyzed ${hostname} - found ${technologies.length} technologies`);
         }
@@ -138,7 +140,7 @@ class TechLookupBackground {
     });
   }
 
-  async sendToDatabase(hostname, technologies) {
+  async sendToDatabase(hostname, technologies, metadata = {}) {
     const SUPABASE_URL = 'https://catnatrzpjqcwqnppgkf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhdG5hdHJ6cGpxY3dxbnBwZ2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3ODE2MTEsImV4cCI6MjA2NjM1NzYxMX0.RO4IJkuMNuLoE70UC2-b1JoGH2eXsFkED7HFpOlMofs';
 
@@ -146,6 +148,7 @@ class TechLookupBackground {
       const payload = {
         url: hostname,
         technologies: technologies,
+        metadata: metadata,
         scraped_at: new Date().toISOString()
       };
 
@@ -165,11 +168,12 @@ class TechLookupBackground {
     }
   }
 
-  storeTabResults(tabId, hostname, technologies) {
+  storeTabResults(tabId, hostname, technologies, metadata = {}) {
     chrome.storage.local.set({ 
       [`results_${tabId}`]: {
         hostname,
         technologies,
+        metadata,
         timestamp: new Date().toISOString(),
         source: 'background'
       }
