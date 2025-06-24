@@ -53,7 +53,7 @@ const TechnologyDetailsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 py-8 sm:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
@@ -73,7 +73,7 @@ const TechnologyDetailsPage: React.FC = () => {
 
   if (error || !technology) {
     return (
-      <div className="min-h-screen bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 py-8 sm:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Technology Not Found</h1>
           <p className="text-gray-600 mb-8">{error || 'The requested technology could not be found.'}</p>
@@ -90,17 +90,17 @@ const TechnologyDetailsPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-8 sm:py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         <Link
           to="/"
-          className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-8 transition-colors"
+          className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-6 sm:mb-8 transition-colors"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Search
         </Link>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Technology Info */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-8">
@@ -108,7 +108,7 @@ const TechnologyDetailsPage: React.FC = () => {
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Globe className="h-8 w-8 text-blue-600" />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">{technology.name}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 break-words">{technology.name}</h1>
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                   {technology.category}
                 </span>
@@ -116,7 +116,7 @@ const TechnologyDetailsPage: React.FC = () => {
               
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">{technology.websites.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{technology.websites.length.toLocaleString()}</p>
                   <p className="text-sm text-gray-600">Websites using this technology</p>
                 </div>
               </div>
@@ -132,12 +132,12 @@ const TechnologyDetailsPage: React.FC = () => {
           {/* Websites List */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-xl font-bold text-gray-900">
+              <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                   Websites using {technology.name}
                 </h2>
                 <p className="text-gray-600 mt-1">
-                  {technology.websites.length} website{technology.websites.length !== 1 ? 's' : ''} found
+                  {technology.websites.length.toLocaleString()} website{technology.websites.length !== 1 ? 's' : ''} found
                 </p>
               </div>
 
@@ -147,15 +147,15 @@ const TechnologyDetailsPage: React.FC = () => {
                   <p className="text-gray-500">No websites found using this technology.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-200">
+                <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
                   {technology.websites.map((website) => (
-                    <div key={website.id} className="p-6 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
+                    <div key={website.id} className="p-4 sm:p-6 hover:bg-gray-50 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-3">
                             <Link
                               to={`/website/${website.id}`}
-                              className="text-lg font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                              className="text-base sm:text-lg font-medium text-gray-900 hover:text-blue-600 transition-colors truncate"
                             >
                               {website.url}
                             </Link>
@@ -163,7 +163,7 @@ const TechnologyDetailsPage: React.FC = () => {
                               href={`https://${website.url}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-gray-400 hover:text-gray-600 transition-colors"
+                              className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
                             >
                               <ExternalLink className="h-4 w-4" />
                             </a>

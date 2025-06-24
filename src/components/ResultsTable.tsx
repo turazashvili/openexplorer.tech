@@ -47,7 +47,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
         <div className="animate-pulse space-y-4">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="grid grid-cols-4 gap-4">
+            <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="h-4 bg-gray-200 rounded"></div>
               <div className="h-4 bg-gray-200 rounded"></div>
               <div className="h-4 bg-gray-200 rounded"></div>
@@ -69,7 +69,8 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="overflow-x-auto">
+      {/* Desktop Table View */}
+      <div className="hidden lg:block overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -147,6 +148,79 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="lg:hidden divide-y divide-gray-200">
+        {results.map((result) => (
+          <div key={result.id} className="p-4 hover:bg-gray-50 transition-colors">
+            <div className="space-y-3">
+              {/* Website URL */}
+              <div className="flex items-center justify-between">
+                <Link
+                  to={`/website/${result.id}`}
+                  className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors truncate flex-1 mr-2"
+                >
+                  {result.url}
+                </Link>
+                <a
+                  href={`https://${result.url}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </div>
+
+              {/* Technologies */}
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Technologies</div>
+                <div className="flex flex-wrap gap-1">
+                  {result.technologies.slice(0, 4).map((tech, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                      title={tech.category}
+                    >
+                      {tech.name}
+                    </span>
+                  ))}
+                  {result.technologies.length > 4 && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                      +{result.technologies.length - 4}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Features and Last Scraped */}
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center space-x-2">
+                  {getMetadataIndicators(result.metadata).map((indicator, index) => {
+                    const Icon = indicator.icon;
+                    return (
+                      <Icon
+                        key={index}
+                        className={`h-4 w-4 ${indicator.color}`}
+                        title={indicator.title}
+                      />
+                    );
+                  })}
+                  {result.metadata?.page_load_time && (
+                    <span className="text-xs text-gray-500" title="Page load time">
+                      {Math.round(result.metadata.page_load_time)}ms
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-1 text-xs text-gray-500">
+                  <Clock className="h-3 w-3" />
+                  <span>{getRelativeTime(result.lastScraped)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

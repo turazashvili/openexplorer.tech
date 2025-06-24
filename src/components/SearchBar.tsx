@@ -16,19 +16,20 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, initialValue = '' }) =>
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto">
-      <div className="relative">
+      <div className="relative flex">
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Enter website URL..."
-          className="w-full px-6 py-4 text-lg border border-gray-300 rounded-l-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          placeholder="Enter website URL or technology name..."
+          className="flex-1 px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg border border-gray-300 rounded-l-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
         />
         <button
           type="submit"
-          className="absolute right-0 top-0 h-full px-8 bg-blue-600 text-white font-semibold rounded-r-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          className="px-6 sm:px-8 bg-blue-600 text-white font-semibold rounded-r-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center justify-center"
         >
-          <Search className="h-5 w-5" />
+          <Search className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="hidden sm:inline ml-2">Search</span>
         </button>
       </div>
     </form>
