@@ -165,12 +165,6 @@ const TechnologyListPage: React.FC = () => {
         return;
       }
 
-      setTechnologyInfo({
-        name: foundTechnology.name,
-        category: foundTechnology.category,
-        totalCount: 0
-      });
-
       console.log('✅ Using technology:', foundTechnology.name);
 
       // Search for websites using this technology
@@ -194,9 +188,12 @@ const TechnologyListPage: React.FC = () => {
       setResults(response.results);
       setPagination(response.pagination);
       
-      if (technologyInfo) {
-        setTechnologyInfo(prev => prev ? { ...prev, totalCount: response.pagination.total } : null);
-      }
+      // Update technology info with the correct total count from search response
+      setTechnologyInfo({
+        name: foundTechnology.name,
+        category: foundTechnology.category,
+        totalCount: response.pagination.total // Use the actual total from search results
+      });
 
     } catch (err) {
       console.error('Error fetching technology data:', err);
@@ -337,7 +334,7 @@ const TechnologyListPage: React.FC = () => {
               {technologyInfo.name} Websites
             </h1>
             <p className="text-lg sm:text-xl text-gray-600 mb-6 max-w-2xl mx-auto">
-              Discover {pagination.total.toLocaleString()} websites using {technologyInfo.name} technology
+              Discover {technologyInfo.totalCount.toLocaleString()} websites using {technologyInfo.name} technology
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-500">
               <div className="flex items-center space-x-2">
@@ -347,7 +344,7 @@ const TechnologyListPage: React.FC = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>{pagination.total.toLocaleString()} websites found</span>
+                <span>{technologyInfo.totalCount.toLocaleString()} websites found</span>
               </div>
             </div>
           </div>
@@ -369,7 +366,7 @@ const TechnologyListPage: React.FC = () => {
                 )}
               </h2>
               <p className="text-gray-600 text-sm mt-1">
-                Showing {results.length} of {pagination.total.toLocaleString()} results
+                Showing {results.length} of {technologyInfo.totalCount.toLocaleString()} results
               </p>
             </div>
 
