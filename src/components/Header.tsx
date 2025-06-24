@@ -8,7 +8,7 @@ const Header: React.FC = () => {
         <div className="flex justify-between items-center h-14 sm:h-16">
           <Link to="/" className="flex items-center space-x-3">
             <img 
-              src="/Untitled design (53).png" 
+              src="/icon.png" 
               alt="Open Tech Explorer" 
               className="h-8 w-8 sm:h-10 sm:w-10"
             />
