@@ -12,26 +12,22 @@ const Header: React.FC = () => {
             <span className="text-lg sm:text-xl font-bold text-gray-900">Open Tech Explorer</span>
           </Link>
           
-          {/* Spacer to account for the floating badge */}
-          <div className="w-16 sm:w-20"></div>
+          {/* Large Bolt.new Badge - Fully Visible */}
+          <a
+            href="https://bolt.new/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center transition-transform hover:scale-105 drop-shadow-lg"
+            title="Made with Bolt.new"
+          >
+            <img
+              src="/black_circle_360x360.png"
+              alt="Made with Bolt.new"
+              className="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16"
+            />
+          </a>
         </div>
       </div>
-      
-      {/* Large Floating Bolt.new Badge */}
-      <a
-        href="https://bolt.new/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute top-0 right-4 sm:right-6 lg:right-8 z-60 transition-transform hover:scale-105 drop-shadow-lg"
-        title="Made with Bolt.new"
-        style={{ transform: 'translateY(-25%)' }}
-      >
-        <img
-          src="/black_circle_360x360.png"
-          alt="Made with Bolt.new"
-          className="h-16 w-16 sm:h-20 sm:w-20 lg:h-24 lg:w-24"
-        />
-      </a>
     </header>
   );
 };
