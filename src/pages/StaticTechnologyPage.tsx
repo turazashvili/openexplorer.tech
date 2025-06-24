@@ -12,7 +12,7 @@ interface StaticTechnologyPageProps {
 const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [results, setResults] = useState<WebsiteResult[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [resultsLoading, setResultsLoading] = useState(true); // Only results loading, not the whole page
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -38,7 +38,7 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
   }, [technology.name, searchParams]);
 
   const fetchTechnologyData = async () => {
-    setLoading(true);
+    setResultsLoading(true); // Only set results loading
     setError(null);
 
     try {
@@ -69,7 +69,7 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
       console.error('Error fetching technology data:', err);
       setError('Failed to load technology data');
     } finally {
-      setLoading(false);
+      setResultsLoading(false); // Only results loading
     }
   };
 
@@ -145,29 +145,24 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
     key !== 'sort' && key !== 'order' && filters[key as keyof typeof filters]
   ).length;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-              <div className="h-12 bg-gray-200 rounded mb-6"></div>
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-4 bg-gray-200 rounded"></div>
-                ))}
-              </div>
-            </div>
+  // Render loading skeleton for results only
+  const renderResultsLoading = () => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+      <div className="animate-pulse space-y-4">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="h-4 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-gray-200 rounded"></div>
           </div>
-        </div>
+        ))}
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* SEO-optimized header */}
+      {/* SEO-optimized header - Always visible immediately */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Link
@@ -195,8 +190,10 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
                 </span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>{pagination.total.toLocaleString()} websites found</span>
+                <div className={`w-2 h-2 rounded-full ${resultsLoading ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`}></div>
+                <span>
+                  {resultsLoading ? 'Loading...' : `${pagination.total.toLocaleString()} websites found`}
+                </span>
               </div>
             </div>
           </div>
@@ -218,7 +215,14 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
                 )}
               </h2>
               <p className="text-gray-600 text-sm mt-1">
-                Showing {results.length} of {pagination.total.toLocaleString()} results
+                {resultsLoading ? (
+                  <span className="inline-flex items-center">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse mr-2"></div>
+                    Loading results...
+                  </span>
+                ) : (
+                  `Showing ${results.length} of ${pagination.total.toLocaleString()} results`
+                )}
               </p>
             </div>
 
@@ -230,6 +234,7 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
                     ? 'border-blue-500 bg-blue-50 text-blue-700' 
                     : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                 }`}
+                disabled={resultsLoading}
               >
                 <Filter className="h-4 w-4" />
                 <span className="hidden sm:inline">Filters</span>
@@ -251,6 +256,7 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
                   <button
                     onClick={clearFilters}
                     className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                    disabled={resultsLoading}
                   >
                     Clear all filters
                   </button>
@@ -266,6 +272,7 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
                     value={filters.responsive}
                     onChange={(e) => handleFilterChange('responsive', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={resultsLoading}
                   >
                     <option value="">Any</option>
                     <option value="true">Responsive</option>
@@ -281,6 +288,7 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
                     value={filters.https}
                     onChange={(e) => handleFilterChange('https', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={resultsLoading}
                   >
                     <option value="">Any</option>
                     <option value="true">HTTPS (Secure)</option>
@@ -296,6 +304,7 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
                     value={filters.spa}
                     onChange={(e) => handleFilterChange('spa', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={resultsLoading}
                   >
                     <option value="">Any</option>
                     <option value="true">Single Page App</option>
@@ -311,6 +320,7 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
                     value={filters.service_worker}
                     onChange={(e) => handleFilterChange('service_worker', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={resultsLoading}
                   >
                     <option value="">Any</option>
                     <option value="true">Has Service Worker</option>
@@ -329,6 +339,7 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
                       value={filters.sort}
                       onChange={(e) => handleFilterChange('sort', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={resultsLoading}
                     >
                       <option value="last_scraped">Last scraped</option>
                       <option value="url">Website URL</option>
@@ -344,6 +355,7 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
                       value={filters.order}
                       onChange={(e) => handleFilterChange('order', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={resultsLoading}
                     >
                       <option value="desc">Newest first</option>
                       <option value="asc">Oldest first</option>
@@ -354,49 +366,117 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
             </div>
           )}
 
-          {/* Results */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            {results.length === 0 ? (
-              <div className="p-8 text-center">
-                <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">
-                  {loading ? 'Loading...' : 'No websites found with the current filters.'}
-                </p>
+          {/* Results - Show loading skeleton only for results */}
+          {resultsLoading ? (
+            renderResultsLoading()
+          ) : error ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+              <div className="text-red-600 mb-4">
+                <Globe className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p className="font-medium">Failed to load results</p>
+                <p className="text-sm text-gray-500 mt-1">{error}</p>
               </div>
-            ) : (
-              <>
-                {/* Desktop Table View */}
-                <div className="hidden lg:block overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Website</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Features</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Last Scraped</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {results.map((result) => (
-                        <tr key={result.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center space-x-2">
-                              <Link
-                                to={getWebsiteUrl(result.url)}
-                                className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
-                              >
-                                {result.url}
-                              </Link>
-                              <a
-                                href={`https://${result.url}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
+              <button
+                onClick={fetchTechnologyData}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {results.length === 0 ? (
+                <div className="p-8 text-center">
+                  <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No websites found with the current filters.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Website</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Features</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Last Scraped</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {results.map((result) => (
+                          <tr key={result.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center space-x-2">
+                                <Link
+                                  to={getWebsiteUrl(result.url)}
+                                  className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                                >
+                                  {result.url}
+                                </Link>
+                                <a
+                                  href={`https://${result.url}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center space-x-2">
+                                {getMetadataIndicators(result.metadata).map((indicator, index) => {
+                                  const Icon = indicator.icon;
+                                  return (
+                                    <Icon
+                                      key={index}
+                                      className={`h-4 w-4 ${indicator.color}`}
+                                      title={indicator.title}
+                                    />
+                                  );
+                                })}
+                                {result.metadata?.page_load_time && (
+                                  <span className="text-xs text-gray-500" title="Page load time">
+                                    {Math.round(result.metadata.page_load_time)}ms
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center space-x-1 text-sm text-gray-500">
+                                <Clock className="h-4 w-4" />
+                                <span>{getRelativeTime(result.lastScraped)}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Card View */}
+                  <div className="lg:hidden divide-y divide-gray-200">
+                    {results.map((result) => (
+                      <div key={result.id} className="p-4 hover:bg-gray-50 transition-colors">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Link
+                              to={getWebsiteUrl(result.url)}
+                              className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors truncate flex-1 mr-2"
+                            >
+                              {result.url}
+                            </Link>
+                            <a
+                              href={`https://${result.url}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </div>
+
+                          <div className="flex items-center justify-between text-sm">
                             <div className="flex items-center space-x-2">
                               {getMetadataIndicators(result.metadata).map((indicator, index) => {
                                 const Icon = indicator.icon;
@@ -414,74 +494,22 @@ const StaticTechnologyPage: React.FC<StaticTechnologyPageProps> = ({ technology 
                                 </span>
                               )}
                             </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center space-x-1 text-sm text-gray-500">
-                              <Clock className="h-4 w-4" />
+                            <div className="flex items-center space-x-1 text-xs text-gray-500">
+                              <Clock className="h-3 w-3" />
                               <span>{getRelativeTime(result.lastScraped)}</span>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile Card View */}
-                <div className="lg:hidden divide-y divide-gray-200">
-                  {results.map((result) => (
-                    <div key={result.id} className="p-4 hover:bg-gray-50 transition-colors">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Link
-                            to={getWebsiteUrl(result.url)}
-                            className="text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors truncate flex-1 mr-2"
-                          >
-                            {result.url}
-                          </Link>
-                          <a
-                            href={`https://${result.url}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </div>
-
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center space-x-2">
-                            {getMetadataIndicators(result.metadata).map((indicator, index) => {
-                              const Icon = indicator.icon;
-                              return (
-                                <Icon
-                                  key={index}
-                                  className={`h-4 w-4 ${indicator.color}`}
-                                  title={indicator.title}
-                                />
-                              );
-                            })}
-                            {result.metadata?.page_load_time && (
-                              <span className="text-xs text-gray-500" title="Page load time">
-                                {Math.round(result.metadata.page_load_time)}ms
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center space-x-1 text-xs text-gray-500">
-                            <Clock className="h-3 w-3" />
-                            <span>{getRelativeTime(result.lastScraped)}</span>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Pagination */}
-          {pagination.totalPages > 1 && (
+          {!resultsLoading && pagination.totalPages > 1 && (
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
