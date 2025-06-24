@@ -43,11 +43,12 @@ Deno.serve(async (req: Request) => {
     const cleanUrl = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
     const scrapedAt = scraped_at ? new Date(scraped_at) : new Date();
 
+    console.log(`Processing ingest for ${cleanUrl} with ${technologies.length} technologies`);
+
     // Prepare website data with metadata
     const websiteData = {
       url: cleanUrl,
       last_scraped: scrapedAt.toISOString(),
-      // Store metadata as JSONB
       metadata: metadata
     };
 
@@ -75,22 +76,28 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    console.log(`Website upserted: ${website.id}`);
+
     // Process technologies with enhanced categorization
     const techResults = [];
     const websiteTechLinks = [];
 
     for (const techName of technologies) {
-      if (!techName.trim()) continue;
+      if (!techName || !techName.trim()) continue;
 
+      const trimmedTechName = techName.trim();
+      
       // Determine category based on technology name
-      const category = categorizeTechnology(techName.trim());
+      const category = categorizeTechnology(trimmedTechName);
+
+      console.log(`Processing technology: ${trimmedTechName} -> ${category}`);
 
       // Upsert technology with improved categorization
       const { data: tech, error: techError } = await supabaseClient
         .from('technologies')
         .upsert(
           { 
-            name: techName.trim(),
+            name: trimmedTechName,
             category: category
           },
           { 
@@ -113,25 +120,37 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Remove old technology links for this website
-    await supabaseClient
+    console.log(`Processed ${techResults.length} technologies`);
+
+    // Remove old technology links for this website to ensure clean state
+    const { error: deleteError } = await supabaseClient
       .from('website_technologies')
       .delete()
       .eq('website_id', website.id);
+
+    if (deleteError) {
+      console.error('Error deleting old links:', deleteError);
+    }
 
     // Link website to technologies
     if (websiteTechLinks.length > 0) {
       const { error: linkError } = await supabaseClient
         .from('website_technologies')
-        .upsert(websiteTechLinks, { 
-          onConflict: 'website_id,technology_id',
-          ignoreDuplicates: true 
-        });
+        .insert(websiteTechLinks);
 
       if (linkError) {
         console.error('Website-technology link error:', linkError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to link technologies', details: linkError.message }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
     }
+
+    console.log(`Successfully linked ${websiteTechLinks.length} technologies to website`);
 
     return new Response(
       JSON.stringify({
@@ -139,7 +158,8 @@ Deno.serve(async (req: Request) => {
         website: website,
         technologies_processed: techResults.length,
         technologies: techResults,
-        metadata_stored: Object.keys(metadata).length
+        metadata_stored: Object.keys(metadata).length,
+        links_created: websiteTechLinks.length
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

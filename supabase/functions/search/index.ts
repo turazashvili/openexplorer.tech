@@ -39,12 +39,37 @@ Deno.serve(async (req: Request) => {
     const hasServiceWorker = searchParams.get('service_worker');
 
     // Determine if query is likely a technology name vs URL
-    const isLikelyTechnology = query && !query.includes('.') && !query.includes('/');
+    const isLikelyTechnology = query && !query.includes('.') && !query.includes('/') && !query.includes('http');
     
     let queryBuilder;
-    let countQuery;
+    let countQueryBuilder;
 
-    if (isLikelyTechnology || tech) {
+    if (category) {
+      // Category-based search - find websites that use technologies in this category
+      queryBuilder = supabaseClient
+        .from('websites')
+        .select(`
+          id,
+          url,
+          last_scraped,
+          metadata,
+          website_technologies!inner (
+            technologies!inner (
+              id,
+              name,
+              category
+            )
+          )
+        `)
+        .eq('website_technologies.technologies.category', category);
+
+      // Count query for category search
+      countQueryBuilder = supabaseClient
+        .from('websites')
+        .select('id', { count: 'exact', head: true })
+        .eq('website_technologies.technologies.category', category);
+
+    } else if (isLikelyTechnology || tech) {
       // Technology-based search
       const techToSearch = tech || query;
       
@@ -66,7 +91,7 @@ Deno.serve(async (req: Request) => {
         .ilike('website_technologies.technologies.name', `%${techToSearch}%`);
 
       // Count query for technology search
-      countQuery = supabaseClient
+      countQueryBuilder = supabaseClient
         .from('websites')
         .select('id', { count: 'exact', head: true })
         .eq('website_technologies.technologies.name', techToSearch);
@@ -91,41 +116,36 @@ Deno.serve(async (req: Request) => {
 
       if (query) {
         queryBuilder = queryBuilder.ilike('url', `%${query}%`);
-        countQuery = supabaseClient
+        countQueryBuilder = supabaseClient
           .from('websites')
           .select('*', { count: 'exact', head: true })
           .ilike('url', `%${query}%`);
       } else {
-        countQuery = supabaseClient
+        countQueryBuilder = supabaseClient
           .from('websites')
           .select('*', { count: 'exact', head: true });
       }
     }
 
-    // Apply category filter
-    if (category) {
-      queryBuilder = queryBuilder.eq('website_technologies.technologies.category', category);
-    }
-
-    // Apply metadata filters
-    if (isResponsive !== null) {
+    // Apply metadata filters to both query and count
+    if (isResponsive !== null && isResponsive !== '') {
       queryBuilder = queryBuilder.eq('metadata->>is_responsive', isResponsive);
-      if (countQuery) countQuery = countQuery.eq('metadata->>is_responsive', isResponsive);
+      if (countQueryBuilder) countQueryBuilder = countQueryBuilder.eq('metadata->>is_responsive', isResponsive);
     }
 
-    if (isHttps !== null) {
+    if (isHttps !== null && isHttps !== '') {
       queryBuilder = queryBuilder.eq('metadata->>is_https', isHttps);
-      if (countQuery) countQuery = countQuery.eq('metadata->>is_https', isHttps);
+      if (countQueryBuilder) countQueryBuilder = countQueryBuilder.eq('metadata->>is_https', isHttps);
     }
 
-    if (isSpa !== null) {
+    if (isSpa !== null && isSpa !== '') {
       queryBuilder = queryBuilder.eq('metadata->>likely_spa', isSpa);
-      if (countQuery) countQuery = countQuery.eq('metadata->>likely_spa', isSpa);
+      if (countQueryBuilder) countQueryBuilder = countQueryBuilder.eq('metadata->>likely_spa', isSpa);
     }
 
-    if (hasServiceWorker !== null) {
+    if (hasServiceWorker !== null && hasServiceWorker !== '') {
       queryBuilder = queryBuilder.eq('metadata->>has_service_worker', hasServiceWorker);
-      if (countQuery) countQuery = countQuery.eq('metadata->>has_service_worker', hasServiceWorker);
+      if (countQueryBuilder) countQueryBuilder = countQueryBuilder.eq('metadata->>has_service_worker', hasServiceWorker);
     }
 
     // Apply sorting
@@ -140,7 +160,11 @@ Deno.serve(async (req: Request) => {
     // Apply pagination
     queryBuilder = queryBuilder.range(offset, offset + limit - 1);
 
-    const { data: websites, error } = await queryBuilder;
+    // Execute both queries
+    const [{ data: websites, error }, { count: totalCount, error: countError }] = await Promise.all([
+      queryBuilder,
+      countQueryBuilder || Promise.resolve({ count: 0, error: null })
+    ]);
 
     if (error) {
       console.error('Search error:', error);
@@ -153,14 +177,22 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    if (countError) {
+      console.error('Count error:', countError);
+    }
+
     // Transform the data to match frontend expectations
     const results = websites?.map(website => {
       // Get unique technologies for this website
-      const technologies = website.website_technologies
-        ?.map(wt => wt.technologies)
-        ?.filter((tech, index, self) => 
-          tech && index === self.findIndex(t => t && t.id === tech.id)
-        ) || [];
+      let technologies = [];
+      
+      if (website.website_technologies && Array.isArray(website.website_technologies)) {
+        technologies = website.website_technologies
+          .map(wt => wt.technologies)
+          .filter((tech, index, self) => 
+            tech && index === self.findIndex(t => t && t.id === tech.id)
+          );
+      }
 
       return {
         id: website.id,
@@ -174,32 +206,21 @@ Deno.serve(async (req: Request) => {
       };
     }) || [];
 
-    // Get total count for pagination
-    let totalCount = 0;
-    if (countQuery) {
-      const { count } = await countQuery;
-      totalCount = count || 0;
-    } else {
-      // Fallback count for technology searches
-      const { count } = await supabaseClient
-        .from('websites')
-        .select('*', { count: 'exact', head: true });
-      totalCount = count || 0;
-    }
-
     return new Response(
       JSON.stringify({
         results,
         pagination: {
           page,
           limit,
-          total: totalCount,
-          totalPages: Math.ceil(totalCount / limit)
+          total: totalCount || 0,
+          totalPages: Math.ceil((totalCount || 0) / limit)
         },
         debug: {
           query,
+          category,
           isLikelyTechnology,
-          searchType: isLikelyTechnology || tech ? 'technology' : 'url'
+          searchType: category ? 'category' : (isLikelyTechnology || tech ? 'technology' : 'url'),
+          totalFound: websites?.length || 0
         }
       }),
       { 
