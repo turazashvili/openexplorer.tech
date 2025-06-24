@@ -4,15 +4,17 @@ import SearchBar from '../components/SearchBar';
 import SearchFilters from '../components/SearchFilters';
 import ResultsTable from '../components/ResultsTable';
 import Pagination from '../components/Pagination';
+import SearchSuggestions from '../components/SearchSuggestions';
 import RealtimeNotifications from '../components/RealtimeNotifications';
 import RealtimeUpdateBanner from '../components/RealtimeUpdateBanner';
 import AutoRefreshSettings from '../components/AutoRefreshSettings';
-import { searchWebsites, SearchParams, WebsiteResult } from '../lib/api';
+import { searchWebsites, SearchParams, WebsiteResult, SearchSuggestion } from '../lib/api';
 import { useRealtimeStats, useRealtimeSearch, useRealtimeWebsiteList } from '../hooks/useRealtimeData';
 
 const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [results, setResults] = useState<WebsiteResult[]>([]);
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -93,6 +95,7 @@ const SearchPage: React.FC = () => {
 
       const response = await searchWebsites(params);
       setResults(response.results);
+      setSuggestions(response.suggestions || []);
       setPagination(response.pagination);
       
       // Update real-time list
@@ -106,6 +109,7 @@ const SearchPage: React.FC = () => {
     } catch (error) {
       console.error('Search error:', error);
       setResults([]);
+      setSuggestions([]);
       setPagination(prev => ({ ...prev, total: 0, totalPages: 0 }));
     } finally {
       if (!isAutoRefresh) {
@@ -139,6 +143,14 @@ const SearchPage: React.FC = () => {
     setTimeout(() => {
       scrollToResults();
     }, 100);
+  };
+
+  const handleSuggestionClick = (suggestion: SearchSuggestion) => {
+    if (suggestion.type === 'technology') {
+      const newParams = new URLSearchParams();
+      newParams.set('q', suggestion.name);
+      setSearchParams(newParams);
+    }
   };
 
   const handleFiltersChange = (filters: any) => {
@@ -279,6 +291,14 @@ const SearchPage: React.FC = () => {
               />
             </div>
           </div>
+
+          {/* Search Suggestions */}
+          {suggestions.length > 0 && (
+            <SearchSuggestions 
+              suggestions={suggestions}
+              onSuggestionClick={handleSuggestionClick}
+            />
+          )}
 
           {/* Real-time Update Banner - Only show if auto-refresh is disabled */}
           {!autoRefreshEnabled && (

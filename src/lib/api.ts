@@ -14,6 +14,13 @@ export interface Technology {
   category: string;
 }
 
+export interface SearchSuggestion {
+  type: 'technology' | 'website';
+  name: string;
+  category?: string;
+  suggestion: string;
+}
+
 export interface SearchParams {
   q?: string;
   tech?: string;
@@ -30,11 +37,18 @@ export interface SearchParams {
 
 export interface SearchResponse {
   results: WebsiteResult[];
+  suggestions?: SearchSuggestion[];
   pagination: {
     page: number;
     limit: number;
     total: number;
     totalPages: number;
+  };
+  debug?: {
+    query: string;
+    originalQuery: string;
+    searchType: string;
+    totalFound: number;
   };
 }
 
