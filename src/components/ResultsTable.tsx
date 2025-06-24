@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Clock, Shield, Smartphone, Zap } from 'lucide-react';
 import { WebsiteResult } from '../lib/api';
+import { findTechnology } from '../utils/staticTechnologies';
 
 interface ResultsTableProps {
   results: WebsiteResult[];
@@ -42,8 +43,14 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ results, loading }) => {
     return indicators.slice(0, 3); // Show max 3 indicators
   };
 
-  // Helper function to create SEO-friendly technology URLs
+  // Helper function to create SEO-friendly technology URLs using static technology data
   const getTechnologyUrl = (techName: string) => {
+    const staticTech = findTechnology(techName);
+    if (staticTech) {
+      return `/${staticTech.slug}`;
+    }
+    
+    // Fallback to dynamic URL generation
     return `/${techName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
   };
 

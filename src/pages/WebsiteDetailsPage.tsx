@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ExternalLink, Clock, Calendar, ArrowLeft, Shield, Smartphone, Zap, Globe } from 'lucide-react';
 import { getWebsiteDetailsByDomain, WebsiteDetails } from '../lib/api';
+import { findTechnology } from '../utils/staticTechnologies';
 
 const WebsiteDetailsPage: React.FC = () => {
   const { domain } = useParams<{ domain: string }>();
@@ -71,8 +72,14 @@ const WebsiteDetailsPage: React.FC = () => {
     return features;
   };
 
-  // Helper function to create SEO-friendly technology URLs
+  // Helper function to create SEO-friendly technology URLs using static technology data
   const getTechnologyUrl = (techName: string) => {
+    const staticTech = findTechnology(techName);
+    if (staticTech) {
+      return `/${staticTech.slug}`;
+    }
+    
+    // Fallback to dynamic URL generation
     return `/${techName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
   };
 

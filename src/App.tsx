@@ -4,7 +4,7 @@ import Header from './components/Header';
 import SearchPage from './pages/SearchPage';
 import WebsiteDetailsPage from './pages/WebsiteDetailsPage';
 import TechnologyDetailsPage from './pages/TechnologyDetailsPage';
-import TechnologyListPage from './pages/TechnologyListPage';
+import StaticTechnologyRoutes from './components/StaticTechnologyRoutes';
 
 function App() {
   return (
@@ -15,7 +15,8 @@ function App() {
           <Route path="/" element={<SearchPage />} />
           <Route path="/website/:domain" element={<WebsiteDetailsPage />} />
           <Route path="/technology/:id" element={<TechnologyDetailsPage />} />
-          <Route path="/:technologyName" element={<TechnologyListPage />} />
+          {/* Static technology routes - these will handle all technology pages */}
+          <Route path="/*" element={<StaticTechnologyRoutes />} />
         </Routes>
       </div>
     </Router>
