@@ -10,6 +10,7 @@ import RealtimeUpdateBanner from '../components/RealtimeUpdateBanner';
 import AutoRefreshSettings from '../components/AutoRefreshSettings';
 import { searchWebsites, SearchParams, WebsiteResult, SearchSuggestion } from '../lib/api';
 import { useRealtimeStats, useRealtimeSearch, useRealtimeWebsiteList } from '../hooks/useRealtimeData';
+import { detectBrowser } from '../utils/browserDetection';
 
 const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,6 +38,9 @@ const SearchPage: React.FC = () => {
     autoRefreshEnabled,
     setAutoRefreshEnabled
   } = useRealtimeWebsiteList(results);
+
+  // Get browser info for extension suggestions
+  const browser = detectBrowser();
 
   const currentQuery = searchParams.get('q') || '';
   const currentFilters = {
@@ -224,6 +228,21 @@ const SearchPage: React.FC = () => {
           <p className="text-lg sm:text-xl text-gray-600 mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
             Discover the technologies, frameworks, and tools behind any website with our comprehensive database
           </p>
+          
+          {/* Browser-specific extension suggestion */}
+          <div className="mb-6 sm:mb-8">
+            <div className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+              <Download className="h-4 w-4 mr-2" />
+              <span>
+                {browser.isFirefox 
+                  ? 'Get our Firefox extension for instant analysis while browsing' 
+                  : browser.isChromiumBased
+                    ? 'Get our Chrome extension for instant analysis while browsing'
+                    : 'Get our browser extension for instant analysis while browsing'
+                }
+              </span>
+            </div>
+          </div>
           
           <div className="px-4">
             <SearchBar onSearch={handleSearch} initialValue={currentQuery} />
