@@ -232,7 +232,9 @@ Deno.serve(async (req: Request) => {
         } else if (sortBy === 'load_time') {
           return builder.order('metadata->>page_load_time', { ascending: sortOrder === 'asc' });
         } else {
-          return builder.order('last_scraped', { ascending: sortOrder === 'asc' });
+      // FIXED: Execute both searches with higher limits to get more comprehensive results
+      // Then we'll apply pagination after combining and deduplicating
+      const fetchLimit = Math.max(limit * 10, 200); // Fetch 10x the page limit or 200, whichever is higher
         }
       };
 
@@ -241,15 +243,15 @@ Deno.serve(async (req: Request) => {
 
       // Execute both URL and technology searches, plus count queries in parallel
       const [urlResults, techResults] = await Promise.all([
-        queryBuilder.range(offset, offset + limit - 1),
-        techQueryBuilder.range(0, limit - 1)
+        queryBuilder.range(0, fetchLimit - 1), // Fetch from beginning
+        techQueryBuilder.range(0, fetchLimit - 1) // Fetch from beginning
       ]);
 
       // Combine and deduplicate results
       const allWebsites = [];
       const seenIds = new Set();
 
-      // Add URL search results first (higher priority)
+      // Add URL search results first (higher priority for search relevance)
       if (urlResults.data) {
         for (const website of urlResults.data) {
           if (!seenIds.has(website.id)) {
@@ -259,22 +261,25 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // Add technology search results (fill remaining slots)
+      // Add technology search results
       if (techResults.data) {
         for (const website of techResults.data) {
-          if (!seenIds.has(website.id) && allWebsites.length < limit) {
+          if (!seenIds.has(website.id)) {
             allWebsites.push(website);
             seenIds.add(website.id);
           }
         }
       }
 
-      // FIXED: For combined search, calculate count from actual results
-      // Since we're combining and deduplicating, use the total unique results found
+      // FIXED: For combined search, the total count is the total unique results
       const totalCount = allWebsites.length;
+      const totalPages = Math.ceil(totalCount / limit);
+
+      // Apply pagination to the combined results
+      const paginatedResults = allWebsites.slice(offset, offset + limit);
 
       // Transform the combined data
-      const results = allWebsites.map(website => {
+      const results = paginatedResults.map(website => {
         let technologies = [];
         
         if (website.website_technologies && Array.isArray(website.website_technologies)) {
@@ -324,17 +329,19 @@ Deno.serve(async (req: Request) => {
             page,
             limit,
             total: totalCount,
-            totalPages: Math.ceil(totalCount / limit)
+            totalPages: totalPages
           },
           debug: {
             query: cleanQuery,
             originalQuery: query,
             searchType: 'combined',
-            totalFound: results.length,
+            totalFound: paginatedResults.length,
             urlResults: urlResults.data?.length || 0,
             techResults: techResults.data?.length || 0,
+            totalUniqueResults: totalCount,
+            fetchLimit: fetchLimit,
             totalCount: totalCount,
-            note: 'Combined search - count estimated from actual results'
+            note: 'Combined search with proper pagination'
           }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
