@@ -186,9 +186,12 @@ class OpenTechExplorerBackground {
   async loadSettings() {
     return new Promise((resolve) => {
       chrome.storage.sync.get(['autoAnalysis'], (result) => {
+        // Handle case where result might be undefined (Firefox compatibility)
+        const storageResult = result || {};
         this.settings = {
-          autoAnalysis: result.autoAnalysis !== false // Default to true
+          autoAnalysis: storageResult.autoAnalysis !== false // Default to true
         };
+        console.log('OpenTechExplorer MV2: Settings loaded:', this.settings);
         resolve();
       });
     });
@@ -395,14 +398,16 @@ class OpenTechExplorerBackground {
       case 'updateSettings':
         this.settings = { ...this.settings, ...request.settings };
         chrome.storage.sync.set(request.settings, () => {
+          console.log('OpenTechExplorer MV2: Settings updated:', this.settings);
           sendResponse({ success: true });
         });
         break;
 
       case 'getSettings':
         sendResponse(this.settings);
-        break;
-
+        chrome.storage.local.get([`results_${tabId}`], (localResult) => {
+          const storageData = localResult || {};
+          sendResponse(storageData[`results_${tabId}`] || null);
       case 'clearCache':
         this.analysisCache.clear();
         chrome.storage.local.clear();
