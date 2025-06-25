@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
 import SearchFilters from '../components/SearchFilters';
 import ResultsTable from '../components/ResultsTable';
