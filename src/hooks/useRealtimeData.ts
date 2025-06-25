@@ -23,127 +23,84 @@ export function useRealtimeStats() {
     // Initial load
     loadInitialStats();
 
-    // Check if we're in a development environment or if real-time should be disabled
-    const isDevelopment = import.meta.env.DEV;
-    const isLocalhost = window.location.hostname === 'localhost' || 
-                       window.location.hostname === '127.0.0.1' ||
-                       window.location.hostname.includes('.local');
-    
-    // Disable real-time in development or if explicitly disabled
-    if (isDevelopment || isLocalhost || import.meta.env.VITE_DISABLE_REALTIME === 'true') {
-      console.log('🔇 Real-time disabled (development environment or explicit disable)');
+    // Check if real-time is disabled via environment variable
+    if (import.meta.env.VITE_DISABLE_REALTIME === 'true') {
+      console.log('🔇 Real-time disabled via environment variable');
       return;
     }
 
-    // Set up real-time subscriptions with enhanced error handling
-    let websitesSubscription: any;
-    let technologiesSubscription: any;
-    let linkSubscription: any;
+    // Set up real-time subscriptions with better error handling
+    const websitesSubscription = supabase
+      .channel('public:websites')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'websites' 
+        },
+        (payload) => {
+          console.log('🔄 Website change detected:', payload.eventType);
+          loadInitialStats(); // Refresh stats when data changes
+          setStats(prev => ({ ...prev, lastUpdate: new Date() }));
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('📡 Websites subscription status:', status);
+        if (err) {
+          console.error('📡 Websites subscription error:', err);
+        }
+        setStats(prev => ({ 
+          ...prev, 
+          isConnected: status === 'SUBSCRIBED' 
+        }));
+      });
 
-    const setupSubscriptions = () => {
-      try {
-        websitesSubscription = supabase
-          .channel('public:websites', {
-            config: {
-              broadcast: { self: false },
-              presence: { key: 'websites' }
-            }
-          })
-          .on('postgres_changes', 
-            { 
-              event: '*', 
-              schema: 'public', 
-              table: 'websites' 
-            },
-            (payload) => {
-              console.log('🔄 Website change detected:', payload.eventType);
-              loadInitialStats();
-              setStats(prev => ({ ...prev, lastUpdate: new Date() }));
-            }
-          )
-          .subscribe((status, err) => {
-            console.log('📡 Websites subscription status:', status);
-            if (err) {
-              console.warn('📡 Websites subscription error:', err);
-              setStats(prev => ({ ...prev, isConnected: false }));
-            } else {
-              setStats(prev => ({ 
-                ...prev, 
-                isConnected: status === 'SUBSCRIBED' 
-              }));
-            }
-          });
+    const technologiesSubscription = supabase
+      .channel('public:technologies')
+      .on('postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'technologies' 
+        },
+        (payload) => {
+          console.log('🔄 Technology change detected:', payload.eventType);
+          loadInitialStats();
+          setStats(prev => ({ ...prev, lastUpdate: new Date() }));
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('📡 Technologies subscription status:', status);
+        if (err) {
+          console.error('📡 Technologies subscription error:', err);
+        }
+      });
 
-        technologiesSubscription = supabase
-          .channel('public:technologies', {
-            config: {
-              broadcast: { self: false },
-              presence: { key: 'technologies' }
-            }
-          })
-          .on('postgres_changes',
-            { 
-              event: '*', 
-              schema: 'public', 
-              table: 'technologies' 
-            },
-            (payload) => {
-              console.log('🔄 Technology change detected:', payload.eventType);
-              loadInitialStats();
-              setStats(prev => ({ ...prev, lastUpdate: new Date() }));
-            }
-          )
-          .subscribe((status, err) => {
-            console.log('📡 Technologies subscription status:', status);
-            if (err) {
-              console.warn('📡 Technologies subscription error:', err);
-            }
-          });
-
-        linkSubscription = supabase
-          .channel('public:website_technologies', {
-            config: {
-              broadcast: { self: false },
-              presence: { key: 'links' }
-            }
-          })
-          .on('postgres_changes',
-            { 
-              event: '*', 
-              schema: 'public', 
-              table: 'website_technologies' 
-            },
-            (payload) => {
-              console.log('🔄 Website-technology link change detected:', payload.eventType);
-              setStats(prev => ({ ...prev, lastUpdate: new Date() }));
-            }
-          )
-          .subscribe((status, err) => {
-            console.log('📡 Links subscription status:', status);
-            if (err) {
-              console.warn('📡 Links subscription error:', err);
-            }
-          });
-
-      } catch (error) {
-        console.warn('📡 Failed to set up real-time subscriptions:', error);
-        setStats(prev => ({ ...prev, isConnected: false }));
-      }
-    };
-
-    // Set up subscriptions with a delay to ensure page is ready
-    const timer = setTimeout(setupSubscriptions, 1000);
+    const linkSubscription = supabase
+      .channel('public:website_technologies')
+      .on('postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'website_technologies' 
+        },
+        (payload) => {
+          console.log('🔄 Website-technology link change detected:', payload.eventType);
+          setStats(prev => ({ ...prev, lastUpdate: new Date() }));
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('📡 Links subscription status:', status);
+        if (err) {
+          console.error('📡 Links subscription error:', err);
+        }
+      });
 
     return () => {
-      clearTimeout(timer);
       console.log('🔌 Unsubscribing from real-time channels');
-      try {
-        websitesSubscription?.unsubscribe();
-        technologiesSubscription?.unsubscribe();
-        linkSubscription?.unsubscribe();
-      } catch (error) {
-        console.warn('Error unsubscribing from channels:', error);
-      }
+      websitesSubscription.unsubscribe();
+      technologiesSubscription.unsubscribe();
+      linkSubscription.unsubscribe();
     };
   }, []);
 
@@ -207,122 +164,84 @@ export function useRealtimeSearch(searchParams: URLSearchParams) {
     // Reset changes when search params change
     resetChanges();
 
-    // Check if real-time should be disabled
-    const isDevelopment = import.meta.env.DEV;
-    const isLocalhost = window.location.hostname === 'localhost' || 
-                       window.location.hostname === '127.0.0.1' ||
-                       window.location.hostname.includes('.local');
-    
-    if (isDevelopment || isLocalhost || import.meta.env.VITE_DISABLE_REALTIME === 'true') {
-      console.log('🔇 Real-time search disabled (development environment or explicit disable)');
+    // Check if real-time is disabled
+    if (import.meta.env.VITE_DISABLE_REALTIME === 'true') {
+      console.log('🔇 Real-time search disabled via environment variable');
       return;
     }
 
-    // Subscribe to changes that might affect search results with error handling
-    let websiteSubscription: any;
-    let technologySubscription: any;
-    let linkSubscription: any;
+    // Subscribe to changes that might affect search results
+    const websiteSubscription = supabase
+      .channel('search-website-updates')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'websites' },
+        (payload) => {
+          console.log('🆕 New website added:', payload.new?.url);
+          setLastUpdate(new Date());
+          setRecentChanges(prev => ({ 
+            ...prev, 
+            newWebsites: prev.newWebsites + 1 
+          }));
+        }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'websites' },
+        (payload) => {
+          console.log('🔄 Website updated:', payload.new?.url);
+          setLastUpdate(new Date());
+          setRecentChanges(prev => ({ 
+            ...prev, 
+            updatedWebsites: prev.updatedWebsites + 1 
+          }));
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('📡 Search website subscription status:', status);
+        if (err) {
+          console.error('📡 Search website subscription error:', err);
+        }
+      });
 
-    const setupSearchSubscriptions = () => {
-      try {
-        websiteSubscription = supabase
-          .channel('search-website-updates', {
-            config: {
-              broadcast: { self: false },
-              presence: { key: 'search-websites' }
-            }
-          })
-          .on('postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'websites' },
-            (payload) => {
-              console.log('🆕 New website added:', payload.new?.url);
-              setLastUpdate(new Date());
-              setRecentChanges(prev => ({ 
-                ...prev, 
-                newWebsites: prev.newWebsites + 1 
-              }));
-            }
-          )
-          .on('postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'websites' },
-            (payload) => {
-              console.log('🔄 Website updated:', payload.new?.url);
-              setLastUpdate(new Date());
-              setRecentChanges(prev => ({ 
-                ...prev, 
-                updatedWebsites: prev.updatedWebsites + 1 
-              }));
-            }
-          )
-          .subscribe((status, err) => {
-            console.log('📡 Search website subscription status:', status);
-            if (err) {
-              console.warn('📡 Search website subscription error:', err);
-            }
-          });
+    const technologySubscription = supabase
+      .channel('search-technology-updates')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'technologies' },
+        (payload) => {
+          console.log('🆕 New technology added:', payload.new?.name);
+          setLastUpdate(new Date());
+          setRecentChanges(prev => ({ 
+            ...prev, 
+            newTechnologies: prev.newTechnologies + 1 
+          }));
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('📡 Search technology subscription status:', status);
+        if (err) {
+          console.error('📡 Search technology subscription error:', err);
+        }
+      });
 
-        technologySubscription = supabase
-          .channel('search-technology-updates', {
-            config: {
-              broadcast: { self: false },
-              presence: { key: 'search-technologies' }
-            }
-          })
-          .on('postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'technologies' },
-            (payload) => {
-              console.log('🆕 New technology added:', payload.new?.name);
-              setLastUpdate(new Date());
-              setRecentChanges(prev => ({ 
-                ...prev, 
-                newTechnologies: prev.newTechnologies + 1 
-              }));
-            }
-          )
-          .subscribe((status, err) => {
-            console.log('📡 Search technology subscription status:', status);
-            if (err) {
-              console.warn('📡 Search technology subscription error:', err);
-            }
-          });
-
-        linkSubscription = supabase
-          .channel('search-link-updates', {
-            config: {
-              broadcast: { self: false },
-              presence: { key: 'search-links' }
-            }
-          })
-          .on('postgres_changes',
-            { event: '*', schema: 'public', table: 'website_technologies' },
-            (payload) => {
-              console.log('🔗 Website-technology link changed');
-              setLastUpdate(new Date());
-            }
-          )
-          .subscribe((status, err) => {
-            console.log('📡 Search link subscription status:', status);
-            if (err) {
-              console.warn('📡 Search link subscription error:', err);
-            }
-          });
-
-      } catch (error) {
-        console.warn('📡 Failed to set up search subscriptions:', error);
-      }
-    };
-
-    const timer = setTimeout(setupSearchSubscriptions, 1000);
+    const linkSubscription = supabase
+      .channel('search-link-updates')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'website_technologies' },
+        (payload) => {
+          console.log('🔗 Website-technology link changed');
+          setLastUpdate(new Date());
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('📡 Search link subscription status:', status);
+        if (err) {
+          console.error('📡 Search link subscription error:', err);
+        }
+      });
 
     return () => {
-      clearTimeout(timer);
-      try {
-        websiteSubscription?.unsubscribe();
-        technologySubscription?.unsubscribe();
-        linkSubscription?.unsubscribe();
-      } catch (error) {
-        console.warn('Error unsubscribing from search channels:', error);
-      }
+      websiteSubscription.unsubscribe();
+      technologySubscription.unsubscribe();
+      linkSubscription.unsubscribe();
     };
   }, [searchParams.toString(), resetChanges]);
 
@@ -360,62 +279,37 @@ export function useRealtimeWebsiteList(initialResults: WebsiteResult[]) {
   }, []);
 
   useEffect(() => {
-    // Check if real-time should be disabled
-    const isDevelopment = import.meta.env.DEV;
-    const isLocalhost = window.location.hostname === 'localhost' || 
-                       window.location.hostname === '127.0.0.1' ||
-                       window.location.hostname.includes('.local');
-    
-    if (isDevelopment || isLocalhost || import.meta.env.VITE_DISABLE_REALTIME === 'true') {
-      console.log('🔇 Real-time website list disabled (development environment or explicit disable)');
+    // Check if real-time is disabled
+    if (import.meta.env.VITE_DISABLE_REALTIME === 'true') {
+      console.log('🔇 Real-time website list disabled via environment variable');
       return;
     }
 
-    let subscription: any;
-
-    const setupListSubscription = () => {
-      try {
-        subscription = supabase
-          .channel('website-list-updates', {
-            config: {
-              broadcast: { self: false },
-              presence: { key: 'website-list' }
-            }
-          })
-          .on('postgres_changes',
-            { event: '*', schema: 'public', table: 'websites' },
-            (payload) => {
-              console.log('📋 Website list change detected:', payload.eventType);
-              setPendingUpdates(prev => prev + 1);
-            }
-          )
-          .on('postgres_changes',
-            { event: '*', schema: 'public', table: 'website_technologies' },
-            (payload) => {
-              console.log('📋 Website technologies change detected:', payload.eventType);
-              setPendingUpdates(prev => prev + 1);
-            }
-          )
-          .subscribe((status, err) => {
-            console.log('📡 Website list subscription status:', status);
-            if (err) {
-              console.warn('📡 Website list subscription error:', err);
-            }
-          });
-      } catch (error) {
-        console.warn('📡 Failed to set up website list subscription:', error);
-      }
-    };
-
-    const timer = setTimeout(setupListSubscription, 1000);
+    const subscription = supabase
+      .channel('website-list-updates')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'websites' },
+        (payload) => {
+          console.log('📋 Website list change detected:', payload.eventType);
+          setPendingUpdates(prev => prev + 1);
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'website_technologies' },
+        (payload) => {
+          console.log('📋 Website technologies change detected:', payload.eventType);
+          setPendingUpdates(prev => prev + 1);
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('📡 Website list subscription status:', status);
+        if (err) {
+          console.error('📡 Website list subscription error:', err);
+        }
+      });
 
     return () => {
-      clearTimeout(timer);
-      try {
-        subscription?.unsubscribe();
-      } catch (error) {
-        console.warn('Error unsubscribing from website list channel:', error);
-      }
+      subscription.unsubscribe();
     };
   }, []);
 
@@ -456,85 +350,60 @@ export function useRealtimeNotifications() {
   }>>([]);
 
   useEffect(() => {
-    // Check if real-time should be disabled
-    const isDevelopment = import.meta.env.DEV;
-    const isLocalhost = window.location.hostname === 'localhost' || 
-                       window.location.hostname === '127.0.0.1' ||
-                       window.location.hostname.includes('.local');
-    
-    if (isDevelopment || isLocalhost || import.meta.env.VITE_DISABLE_REALTIME === 'true') {
-      console.log('🔇 Real-time notifications disabled (development environment or explicit disable)');
+    // Check if real-time is disabled
+    if (import.meta.env.VITE_DISABLE_REALTIME === 'true') {
+      console.log('🔇 Real-time notifications disabled via environment variable');
       return;
     }
 
-    let subscription: any;
-
-    const setupNotificationSubscription = () => {
-      try {
-        subscription = supabase
-          .channel('notifications', {
-            config: {
-              broadcast: { self: false },
-              presence: { key: 'notifications' }
-            }
-          })
-          .on('postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'websites' },
-            (payload) => {
-              const newNotification = {
-                id: `website-${payload.new?.id}`,
-                type: 'new_website' as const,
-                message: `New website analyzed: ${payload.new?.url}`,
-                timestamp: new Date(),
-                data: payload.new
-              };
-              
-              setNotifications(prev => [newNotification, ...prev.slice(0, 9)]); // Keep last 10
-              
-              // Auto-remove after 5 seconds
-              setTimeout(() => {
-                setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
-              }, 5000);
-            }
-          )
-          .on('postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'technologies' },
-            (payload) => {
-              const newNotification = {
-                id: `tech-${payload.new?.id}`,
-                type: 'new_technology' as const,
-                message: `New technology discovered: ${payload.new?.name}`,
-                timestamp: new Date(),
-                data: payload.new
-              };
-              
-              setNotifications(prev => [newNotification, ...prev.slice(0, 9)]);
-              
-              setTimeout(() => {
-                setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
-              }, 5000);
-            }
-          )
-          .subscribe((status, err) => {
-            console.log('📡 Notifications subscription status:', status);
-            if (err) {
-              console.warn('📡 Notifications subscription error:', err);
-            }
-          });
-      } catch (error) {
-        console.warn('📡 Failed to set up notification subscription:', error);
-      }
-    };
-
-    const timer = setTimeout(setupNotificationSubscription, 1000);
+    const subscription = supabase
+      .channel('notifications')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'websites' },
+        (payload) => {
+          const newNotification = {
+            id: `website-${payload.new?.id}`,
+            type: 'new_website' as const,
+            message: `New website analyzed: ${payload.new?.url}`,
+            timestamp: new Date(),
+            data: payload.new
+          };
+          
+          setNotifications(prev => [newNotification, ...prev.slice(0, 9)]); // Keep last 10
+          
+          // Auto-remove after 5 seconds
+          setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+          }, 5000);
+        }
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'technologies' },
+        (payload) => {
+          const newNotification = {
+            id: `tech-${payload.new?.id}`,
+            type: 'new_technology' as const,
+            message: `New technology discovered: ${payload.new?.name}`,
+            timestamp: new Date(),
+            data: payload.new
+          };
+          
+          setNotifications(prev => [newNotification, ...prev.slice(0, 9)]);
+          
+          setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+          }, 5000);
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('📡 Notifications subscription status:', status);
+        if (err) {
+          console.error('📡 Notifications subscription error:', err);
+        }
+      });
 
     return () => {
-      clearTimeout(timer);
-      try {
-        subscription?.unsubscribe();
-      } catch (error) {
-        console.warn('Error unsubscribing from notification channel:', error);
-      }
+      subscription.unsubscribe();
     };
   }, []);
 
