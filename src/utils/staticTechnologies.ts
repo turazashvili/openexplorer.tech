@@ -88,6 +88,9 @@ export const STATIC_TECHNOLOGIES: StaticTechnology[] = [
   { name: 'Lazy Loading', slug: 'lazy-loading', category: 'Performance', description: 'Technique for deferring loading of non-critical resources' },
   { name: 'Service Worker', slug: 'service-worker', category: 'Performance', description: 'A script that your browser runs in the background' },
   { name: 'Web Workers', slug: 'web-workers', category: 'Performance', description: 'A way to run scripts in background threads' },
+
+  // Backend Services
+  { name: 'Supabase', slug: 'supabase', category: 'Backend Service', description: 'Open source Firebase alternative with PostgreSQL' },
 ];
 
 // Create lookup maps for efficient searching

@@ -37,12 +37,12 @@ const Footer: React.FC = () => {
               </li>
               <li>
                 <a
-                  href="https://addons.mozilla.org/en-US/firefox/addon/openexplorer_tech/"
+                  href="https://addons.mozilla.org/en-US/firefox/addon/openexplorer_tech/" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-600 hover:text-gray-900 transition-colors"
                 >
-                  Firefox Extension
+                  Browser Extension
                 </a>
               </li>
               <li>

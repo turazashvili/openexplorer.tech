@@ -436,6 +436,34 @@ class TechnologyDetector {
       
       'Web Workers': () => {
         return !!(window.Worker && document.documentElement.innerHTML.includes('new Worker'));
+      },
+      
+      // Backend Services
+      'Supabase': () => {
+        const hasSupabase = !!(window.supabase ||
+                 window._supabase ||
+                 document.querySelector('script[src*="supabase"]') ||
+                 document.querySelector('script[src*="cdn.jsdelivr.net/npm/@supabase"]') ||
+                 document.querySelector('script[src*="unpkg.com/@supabase"]') ||
+                 document.documentElement.innerHTML.includes('supabase.co') ||
+                 document.documentElement.innerHTML.includes('createClient'));
+        
+        if (hasSupabase) {
+          // Try to detect if it's using edge functions
+          if (document.documentElement.innerHTML.includes('/functions/v1/') || 
+              document.documentElement.innerHTML.includes('supabase.co/functions')) {
+            this.metadata.supabase_has_edge_functions = true;
+          }
+          
+          // Try to detect realtime usage
+          if (document.documentElement.innerHTML.includes('realtime') ||
+              document.documentElement.innerHTML.includes('subscribe') ||
+              document.documentElement.innerHTML.includes('channel')) {
+            this.metadata.supabase_uses_realtime = true;
+          }
+        }
+        
+        return hasSupabase;
       }
     };
   }
@@ -611,7 +639,8 @@ class TechnologyDetector {
           'Intercom': ['intercom'],
           'Zendesk': ['zendesk'],
           'Hotjar': ['hotjar'],
-          'Mixpanel': ['mixpanel']
+          'Mixpanel': ['mixpanel'],
+          'Supabase': ['supabase', 'supabase.co']
         };
         
         Object.entries(detections).forEach(([tech, patterns]) => {
