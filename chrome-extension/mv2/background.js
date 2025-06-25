@@ -405,10 +405,6 @@ class OpenTechExplorerBackground {
 
       case 'getSettings':
         sendResponse(this.settings);
-        chrome.storage.local.get([`results_${tabId}`], (localResult) => {
-          const storageData = localResult || {};
-          sendResponse(storageData[`results_${tabId}`] || null);
-        });
         break;
 
       case 'clearCache':
