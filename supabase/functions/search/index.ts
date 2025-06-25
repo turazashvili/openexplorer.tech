@@ -240,11 +240,9 @@ Deno.serve(async (req: Request) => {
       techQueryBuilder = applySorting(techQueryBuilder);
 
       // Execute both URL and technology searches, plus count queries in parallel
-      const [urlResults, techResults, { count: urlCount }, { count: techCount }] = await Promise.all([
+      const [urlResults, techResults] = await Promise.all([
         queryBuilder.range(offset, offset + limit - 1),
-        techQueryBuilder.range(0, limit - 1),
-        countQueryBuilder,
-        techCountQueryBuilder
+        techQueryBuilder.range(0, limit - 1)
       ]);
 
       // Combine and deduplicate results
@@ -271,11 +269,9 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // FIXED: Use the proper count results
-
-      // For combined search, we take the maximum count since we're deduplicating results
-      // This gives a reasonable estimate of total unique websites
-      const totalCount = Math.max(urlCount || 0, techCount || 0);
+      // FIXED: For combined search, calculate count from actual results
+      // Since we're combining and deduplicating, use the total unique results found
+      const totalCount = allWebsites.length;
 
       // Transform the combined data
       const results = allWebsites.map(website => {
@@ -337,7 +333,8 @@ Deno.serve(async (req: Request) => {
             totalFound: results.length,
             urlResults: urlResults.data?.length || 0,
             techResults: techResults.data?.length || 0,
-            totalCount: totalCount
+            totalCount: totalCount,
+            note: 'Combined search - count estimated from actual results'
           }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
