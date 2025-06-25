@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Code, Play, Copy, Check, Book, Database, Search, Globe, Zap } from 'lucide-react';
+import { ArrowLeft, Code, Play, Copy, Check, Book, Database, Search, Globe, Zap, AlertCircle, CheckCircle } from 'lucide-react';
 
 const ApiDocsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('search');
   const [playgroundQuery, setPlaygroundQuery] = useState('react');
   const [playgroundResponse, setPlaygroundResponse] = useState('');
   const [playgroundLoading, setPlaygroundLoading] = useState(false);
+  const [playgroundStatus, setPlaygroundStatus] = useState<'success' | 'error' | null>(null);
   const [copiedStates, setCopiedStates] = useState<Record<string, boolean>>({});
+
+  // Get the anon key from environment variables
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   const copyToClipboard = async (text: string, key: string) => {
     await navigator.clipboard.writeText(text);
@@ -19,17 +23,37 @@ const ApiDocsPage: React.FC = () => {
 
   const runPlayground = async () => {
     setPlaygroundLoading(true);
+    setPlaygroundStatus(null);
     try {
       const params = new URLSearchParams({
         q: playgroundQuery,
         limit: '5'
       });
       
-      const response = await fetch(`/api/search?${params}`);
+      const response = await fetch(`/api/search?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${anonKey}`,
+          'Content-Type': 'application/json',
+        }
+      });
+      
       const data = await response.json();
-      setPlaygroundResponse(JSON.stringify(data, null, 2));
+      const responseText = JSON.stringify(data, null, 2);
+      setPlaygroundResponse(responseText);
+      
+      // Determine if response is success or error
+      if (response.ok && !data.error) {
+        setPlaygroundStatus('success');
+      } else {
+        setPlaygroundStatus('error');
+      }
     } catch (error) {
-      setPlaygroundResponse(JSON.stringify({ error: 'Failed to fetch data' }, null, 2));
+      const errorResponse = JSON.stringify({ 
+        error: 'Failed to fetch data', 
+        details: error instanceof Error ? error.message : 'Unknown error' 
+      }, null, 2);
+      setPlaygroundResponse(errorResponse);
+      setPlaygroundStatus('error');
     } finally {
       setPlaygroundLoading(false);
     }
@@ -114,7 +138,8 @@ const ApiDocsPage: React.FC = () => {
 
   const examples = {
     search: {
-      request: `curl "https://openexplorer.tech/api/search?q=react&limit=10&responsive=true"`,
+      request: `curl -H "Authorization: Bearer ${anonKey}" \\
+     "https://openexplorer.tech/api/search?q=react&limit=10&responsive=true"`,
       response: `{
   "results": [
     {
@@ -149,7 +174,8 @@ const ApiDocsPage: React.FC = () => {
 }`
     },
     website: {
-      request: `curl "https://openexplorer.tech/api/website/example.com"`,
+      request: `curl -H "Authorization: Bearer ${anonKey}" \\
+     "https://openexplorer.tech/api/website/example.com"`,
       response: `{
   "id": "123e4567-e89b-12d3-a456-426614174000",
   "url": "example.com",
@@ -179,7 +205,8 @@ const ApiDocsPage: React.FC = () => {
 }`
     },
     technology: {
-      request: `curl "https://openexplorer.tech/api/technology/tech-123"`,
+      request: `curl -H "Authorization: Bearer ${anonKey}" \\
+     "https://openexplorer.tech/api/technology/tech-123"`,
       response: `{
   "id": "tech-123",
   "name": "React",
@@ -220,7 +247,7 @@ const ApiDocsPage: React.FC = () => {
           </div>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Free, real-time API access to our comprehensive database of website technologies. 
-            No API keys required, no rate limits.
+            No API keys required, but authentication headers needed for proper access.
           </p>
         </div>
 
@@ -231,18 +258,30 @@ const ApiDocsPage: React.FC = () => {
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Quick Start</h2>
               <p className="text-gray-700 mb-6">
-                Our API is completely free and doesn't require authentication. Just make HTTP requests to our endpoints:
+                Our API is completely free but requires an Authorization header with our anon key. Include it in all your requests:
               </p>
               <CodeBlock copyKey="quickstart" language="bash">
 {`# Search for React websites
-curl "https://openexplorer.tech/api/search?q=react&limit=5"
+curl -H "Authorization: Bearer ${anonKey}" \\
+     "https://openexplorer.tech/api/search?q=react&limit=5"
 
 # Get details for a specific website
-curl "https://openexplorer.tech/api/website/github.com"
+curl -H "Authorization: Bearer ${anonKey}" \\
+     "https://openexplorer.tech/api/website/github.com"
 
 # Find all websites using a specific technology
-curl "https://openexplorer.tech/api/search?tech=Next.js"`}
+curl -H "Authorization: Bearer ${anonKey}" \\
+     "https://openexplorer.tech/api/search?tech=Next.js"`}
               </CodeBlock>
+              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <strong>Note:</strong> The anon key shown above is publicly available and safe to use in client-side applications. 
+                    It's the same key used by our website and browser extension.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -399,9 +438,35 @@ curl "https://openexplorer.tech/api/search?tech=Next.js"`}
 
             {/* Playground Results */}
             {playgroundResponse && (
-              <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Playground Response</h3>
+              <div className={`mt-8 rounded-xl shadow-sm border-2 overflow-hidden transition-all ${
+                playgroundStatus === 'success' 
+                  ? 'bg-green-50 border-green-200' 
+                  : playgroundStatus === 'error'
+                    ? 'bg-red-50 border-red-200'
+                    : 'bg-white border-gray-200'
+              }`}>
+                <div className={`px-6 py-4 border-b flex items-center space-x-3 ${
+                  playgroundStatus === 'success' 
+                    ? 'bg-green-100 border-green-200' 
+                    : playgroundStatus === 'error'
+                      ? 'bg-red-100 border-red-200'
+                      : 'bg-gray-50 border-gray-200'
+                }`}>
+                  {playgroundStatus === 'success' && (
+                    <>
+                      <CheckCircle className="h-6 w-6 text-green-600" />
+                      <h3 className="text-lg font-semibold text-green-900">Playground Response - Success</h3>
+                    </>
+                  )}
+                  {playgroundStatus === 'error' && (
+                    <>
+                      <AlertCircle className="h-6 w-6 text-red-600" />
+                      <h3 className="text-lg font-semibold text-red-900">Playground Response - Error</h3>
+                    </>
+                  )}
+                  {!playgroundStatus && (
+                    <h3 className="text-lg font-semibold text-gray-900">Playground Response</h3>
+                  )}
                 </div>
                 <div className="p-6">
                   <CodeBlock copyKey="playground-response" language="json">
