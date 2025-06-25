@@ -40,22 +40,22 @@
 
 # API Redirects - These MUST come before any catch-all redirects
 [[redirects]]
-  from = "/api/search*"
-  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/search:splat"
+  from = "/api/search"
+  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/search"
   status = 200
   force = true
   headers = {X-From = "Netlify"}
 
 [[redirects]]
-  from = "/api/website/*"
-  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/website-by-domain/:splat"
+  from = "/api/website/:domain"
+  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/website-by-domain/:domain"
   status = 200
   force = true
   headers = {X-From = "Netlify"}
 
 [[redirects]]
-  from = "/api/technology/*"
-  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/technology/:splat"
+  from = "/api/technology/:id"
+  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/technology/:id"
   status = 200
   force = true
   headers = {X-From = "Netlify"}
