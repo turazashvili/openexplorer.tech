@@ -46,9 +46,10 @@ Deno.serve(async (req: Request) => {
     
     let queryBuilder;
     let countQueryBuilder;
+    let searchType = 'default';
 
     if (tech) {
-      // Explicit technology search - this is the key fix for technology pages
+      // Explicit technology search
       console.log('🎯 Technology-specific search for:', tech);
       
       // First, find the exact technology by name (case-insensitive)
@@ -92,11 +93,13 @@ Deno.serve(async (req: Request) => {
         `)
         .eq('website_technologies.technology_id', technology.id);
 
-      // FIXED: Count from website_technologies directly (much simpler and more reliable)
+      // Count query for technology search
       countQueryBuilder = supabaseClient
         .from('website_technologies')
         .select('website_id', { count: 'exact', head: true })
         .eq('technology_id', technology.id);
+
+      searchType = 'technology';
 
     } else if (category) {
       // Category-based search
@@ -117,14 +120,16 @@ Deno.serve(async (req: Request) => {
         `)
         .eq('website_technologies.technologies.category', category);
 
-      // FIXED: Count from website_technologies with technology join
+      // Count query for category search
       countQueryBuilder = supabaseClient
         .from('website_technologies')
         .select('technologies!inner(*)', { count: 'exact', head: true })
         .eq('technologies.category', category);
 
+      searchType = 'category';
+
     } else if (cleanQuery.length > 0) {
-      // Combined URL and technology search
+      // Combined URL and technology search - handle this separately and return early
       console.log('🔍 Performing combined URL + technology search for:', cleanQuery);
       
       queryBuilder = supabaseClient
@@ -197,12 +202,6 @@ Deno.serve(async (req: Request) => {
         `)
         .ilike('website_technologies.technologies.name', `%${cleanQuery}%`);
 
-      // FIXED: Create proper count query for technology search (same structure as main query)
-      let techCountQueryBuilder = supabaseClient
-        .from('websites')
-        .select('id', { count: 'exact', head: true })
-        .ilike('website_technologies.technologies.name', `%${cleanQuery}%`);
-
       // Apply metadata filters to both queries
       const applyMetadataFilters = (builder: any) => {
         if (isResponsive !== null && isResponsive !== '') {
@@ -223,7 +222,6 @@ Deno.serve(async (req: Request) => {
       queryBuilder = applyMetadataFilters(queryBuilder);
       countQueryBuilder = applyMetadataFilters(countQueryBuilder);
       techQueryBuilder = applyMetadataFilters(techQueryBuilder);
-      techCountQueryBuilder = applyMetadataFilters(techCountQueryBuilder);
 
       // Apply sorting
       const applySorting = (builder: any) => {
@@ -232,19 +230,19 @@ Deno.serve(async (req: Request) => {
         } else if (sortBy === 'load_time') {
           return builder.order('metadata->>page_load_time', { ascending: sortOrder === 'asc' });
         } else {
-      // FIXED: Execute both searches with higher limits to get more comprehensive results
-      // Then we'll apply pagination after combining and deduplicating
-      const fetchLimit = Math.max(limit * 10, 200); // Fetch 10x the page limit or 200, whichever is higher
+          return builder.order('last_scraped', { ascending: sortOrder === 'asc' });
         }
       };
 
       queryBuilder = applySorting(queryBuilder);
       techQueryBuilder = applySorting(techQueryBuilder);
 
-      // Execute both URL and technology searches, plus count queries in parallel
+      // Execute both searches with higher limits to get more comprehensive results
+      const fetchLimit = Math.max(limit * 10, 200);
+      
       const [urlResults, techResults] = await Promise.all([
-        queryBuilder.range(0, fetchLimit - 1), // Fetch from beginning
-        techQueryBuilder.range(0, fetchLimit - 1) // Fetch from beginning
+        queryBuilder.range(0, fetchLimit - 1),
+        techQueryBuilder.range(0, fetchLimit - 1)
       ]);
 
       // Combine and deduplicate results
@@ -271,11 +269,9 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // FIXED: For combined search, the total count is the total unique results
+      // Calculate pagination
       const totalCount = allWebsites.length;
       const totalPages = Math.ceil(totalCount / limit);
-
-      // Apply pagination to the combined results
       const paginatedResults = allWebsites.slice(offset, offset + limit);
 
       // Transform the combined data
@@ -368,118 +364,84 @@ Deno.serve(async (req: Request) => {
       countQueryBuilder = supabaseClient
         .from('websites')
         .select('*', { count: 'exact', head: true });
+
+      searchType = 'default';
     }
 
-    // FIXED: Apply metadata filters to count queries for technology and category searches
-    const applyMetadataFiltersToCount = (builder: any, isJunctionTable: boolean = false) => {
+    // Apply metadata filters - this is now done ONCE for all search types except combined
+    const applyMetadataFilters = (builder: any) => {
       if (isResponsive !== null && isResponsive !== '') {
-        const field = isJunctionTable ? 'websites.metadata->>is_responsive' : 'metadata->>is_responsive';
-        builder = builder.eq(field, isResponsive === 'true');
+        builder = builder.eq('metadata->>is_responsive', isResponsive === 'true');
       }
       if (isHttps !== null && isHttps !== '') {
-        const field = isJunctionTable ? 'websites.metadata->>is_https' : 'metadata->>is_https';
-        builder = builder.eq(field, isHttps === 'true');
+        builder = builder.eq('metadata->>is_https', isHttps === 'true');
       }
       if (isSpa !== null && isSpa !== '') {
-        const field = isJunctionTable ? 'websites.metadata->>likely_spa' : 'metadata->>likely_spa';
-        builder = builder.eq(field, isSpa === 'true');
+        builder = builder.eq('metadata->>likely_spa', isSpa === 'true');
       }
       if (hasServiceWorker !== null && hasServiceWorker !== '') {
-        const field = isJunctionTable ? 'websites.metadata->>has_service_worker' : 'metadata->>has_service_worker';
-        builder = builder.eq(field, hasServiceWorker === 'true');
+        builder = builder.eq('metadata->>has_service_worker', hasServiceWorker === 'true');
       }
       return builder;
     };
 
-    // Apply filters and sorting for technology/category searches
-    if (tech || category) {
-      // For count queries using junction table, we need to join with websites to apply metadata filters
-      if (tech) {
-        // Technology search: if we have metadata filters, we need to join with websites table
+    // Apply metadata filters to count queries with appropriate table references
+    const applyMetadataFiltersToCount = (builder: any, searchType: string) => {
+      if (searchType === 'technology' || searchType === 'category') {
+        // For junction table queries, we need to join with websites to apply metadata filters
         if (isResponsive || isHttps || isSpa || hasServiceWorker) {
-          countQueryBuilder = supabaseClient
-            .from('website_technologies')
-            .select('websites!inner(*)', { count: 'exact', head: true })
-            .eq('technology_id', technologyData[0].id);
-          countQueryBuilder = applyMetadataFiltersToCount(countQueryBuilder, true);
-        }
-      } else if (category) {
-        // Category search: if we have metadata filters, we need to join with websites table
-        if (isResponsive || isHttps || isSpa || hasServiceWorker) {
-          countQueryBuilder = supabaseClient
-            .from('website_technologies')
-            .select('websites!inner(*), technologies!inner(*)', { count: 'exact', head: true })
-            .eq('technologies.category', category);
-          countQueryBuilder = applyMetadataFiltersToCount(countQueryBuilder, true);
-        }
-      }
+          if (searchType === 'technology') {
+            builder = supabaseClient
+              .from('website_technologies')
+              .select('websites!inner(*)', { count: 'exact', head: true })
+              .eq('technology_id', tech); // This will be replaced with the actual technology ID
+          } else if (searchType === 'category') {
+            builder = supabaseClient
+              .from('website_technologies')
+              .select('websites!inner(*), technologies!inner(*)', { count: 'exact', head: true })
+              .eq('technologies.category', category);
+          }
 
-      // Apply metadata filters to main query
-      const applyMetadataFilters = (builder: any) => {
-        if (isResponsive !== null && isResponsive !== '') {
-          builder = builder.eq('metadata->>is_responsive', isResponsive === 'true');
+          // Apply metadata filters with websites table prefix
+          if (isResponsive !== null && isResponsive !== '') {
+            builder = builder.eq('websites.metadata->>is_responsive', isResponsive === 'true');
+          }
+          if (isHttps !== null && isHttps !== '') {
+            builder = builder.eq('websites.metadata->>is_https', isHttps === 'true');
+          }
+          if (isSpa !== null && isSpa !== '') {
+            builder = builder.eq('websites.metadata->>likely_spa', isSpa === 'true');
+          }
+          if (hasServiceWorker !== null && hasServiceWorker !== '') {
+            builder = builder.eq('websites.metadata->>has_service_worker', hasServiceWorker === 'true');
+          }
         }
-        if (isHttps !== null && isHttps !== '') {
-          builder = builder.eq('metadata->>is_https', isHttps === 'true');
-        }
-        if (isSpa !== null && isSpa !== '') {
-          builder = builder.eq('metadata->>likely_spa', isSpa === 'true');
-        }
-        if (hasServiceWorker !== null && hasServiceWorker !== '') {
-          builder = builder.eq('metadata->>has_service_worker', hasServiceWorker === 'true');
-        }
-        return builder;
-      };
-
-      queryBuilder = applyMetadataFilters(queryBuilder);
-
-      // Apply sorting
-      if (sortBy === 'url') {
-        queryBuilder = queryBuilder.order('url', { ascending: sortOrder === 'asc' });
-      } else if (sortBy === 'load_time') {
-        queryBuilder = queryBuilder.order('metadata->>page_load_time', { ascending: sortOrder === 'asc' });
       } else {
-        queryBuilder = queryBuilder.order('last_scraped', { ascending: sortOrder === 'asc' });
+        // For direct websites table queries
+        builder = applyMetadataFilters(builder);
       }
+      return builder;
+    };
 
-      // Apply pagination
-      queryBuilder = queryBuilder.range(offset, offset + limit - 1);
+    // Apply filters to main query
+    queryBuilder = applyMetadataFilters(queryBuilder);
+    
+    // Apply filters to count query
+    countQueryBuilder = applyMetadataFiltersToCount(countQueryBuilder, searchType);
 
-    } else if (!cleanQuery) {
-      // Default search: apply filters and sorting
-      const applyMetadataFilters = (builder: any) => {
-        if (isResponsive !== null && isResponsive !== '') {
-          builder = builder.eq('metadata->>is_responsive', isResponsive === 'true');
-        }
-        if (isHttps !== null && isHttps !== '') {
-          builder = builder.eq('metadata->>is_https', isHttps === 'true');
-        }
-        if (isSpa !== null && isSpa !== '') {
-          builder = builder.eq('metadata->>likely_spa', isSpa === 'true');
-        }
-        if (hasServiceWorker !== null && hasServiceWorker !== '') {
-          builder = builder.eq('metadata->>has_service_worker', hasServiceWorker === 'true');
-        }
-        return builder;
-      };
-
-      queryBuilder = applyMetadataFilters(queryBuilder);
-      countQueryBuilder = applyMetadataFilters(countQueryBuilder);
-
-      // Apply sorting
-      if (sortBy === 'url') {
-        queryBuilder = queryBuilder.order('url', { ascending: sortOrder === 'asc' });
-      } else if (sortBy === 'load_time') {
-        queryBuilder = queryBuilder.order('metadata->>page_load_time', { ascending: sortOrder === 'asc' });
-      } else {
-        queryBuilder = queryBuilder.order('last_scraped', { ascending: sortOrder === 'asc' });
-      }
-
-      // Apply pagination
-      queryBuilder = queryBuilder.range(offset, offset + limit - 1);
+    // Apply sorting - this is now done ONCE for all search types except combined
+    if (sortBy === 'url') {
+      queryBuilder = queryBuilder.order('url', { ascending: sortOrder === 'asc' });
+    } else if (sortBy === 'load_time') {
+      queryBuilder = queryBuilder.order('metadata->>page_load_time', { ascending: sortOrder === 'asc' });
+    } else {
+      queryBuilder = queryBuilder.order('last_scraped', { ascending: sortOrder === 'asc' });
     }
 
-    // Execute queries
+    // Apply pagination - this is now done ONCE for all search types except combined
+    queryBuilder = queryBuilder.range(offset, offset + limit - 1);
+
+    // Execute queries - this is now done ONCE for all search types except combined
     const [{ data: websites, error }, { count: totalCount, error: countError }] = await Promise.all([
       queryBuilder,
       countQueryBuilder
@@ -558,7 +520,7 @@ Deno.serve(async (req: Request) => {
           originalQuery: query,
           tech,
           category,
-          searchType: tech ? 'technology' : (category ? 'category' : 'default'),
+          searchType,
           totalFound: websites?.length || 0,
           totalCount: totalCount || 0
         }
