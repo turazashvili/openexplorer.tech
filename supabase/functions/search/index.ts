@@ -239,10 +239,26 @@ Deno.serve(async (req: Request) => {
       queryBuilder = applySorting(queryBuilder);
       techQueryBuilder = applySorting(techQueryBuilder);
 
-      // Execute both URL and technology searches, plus count queries in parallel
+      // FIXED: For combined search, we need to get proper counts first, then fetch paginated results
+      // Get total counts for both URL and technology searches
+      const [urlCount, techCount] = await Promise.all([
+        countQueryBuilder,
+        techCountQueryBuilder
+      ]);
+
+      console.log('📊 Combined search counts:', { 
+        urlCount: urlCount.count, 
+        techCount: techCount.count,
+        query: cleanQuery 
+      });
+
+      // For pagination, we need to fetch more results than the page limit to account for deduplication
+      // Fetch up to 2x the limit from each search to ensure we have enough unique results
+      const fetchLimit = Math.min(limit * 2, 100); // Cap at 100 to avoid excessive queries
+      
       const [urlResults, techResults] = await Promise.all([
         queryBuilder.range(offset, offset + limit - 1),
-        techQueryBuilder.range(0, limit - 1)
+        techQueryBuilder.range(0, fetchLimit - 1)
       ]);
 
       // Combine and deduplicate results
@@ -269,9 +285,16 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // FIXED: For combined search, calculate count from actual results
-      // Since we're combining and deduplicating, use the total unique results found
-      const totalCount = allWebsites.length;
+      // FIXED: Use the maximum of URL and tech counts as the total
+      // This gives a better estimate of total available results
+      const totalCount = Math.max(urlCount.count || 0, techCount.count || 0);
+      
+      console.log('📊 Combined search totals:', { 
+        totalCount,
+        actualResults: allWebsites.length,
+        urlResultsCount: urlResults.data?.length || 0,
+        techResultsCount: techResults.data?.length || 0
+      });
 
       // Transform the combined data
       const results = allWebsites.map(website => {
@@ -334,7 +357,9 @@ Deno.serve(async (req: Request) => {
             urlResults: urlResults.data?.length || 0,
             techResults: techResults.data?.length || 0,
             totalCount: totalCount,
-            note: 'Combined search - count estimated from actual results'
+            urlCount: urlCount.count || 0,
+            techCount: techCount.count || 0,
+            note: 'Combined search with proper counting'
           }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
