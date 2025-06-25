@@ -2,11 +2,6 @@
   publish = "dist"
   command = "npm run build"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
 [build.environment]
   NODE_VERSION = "18"
 
@@ -43,13 +38,12 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# API Redirects - Provide clean API endpoints
+# API Redirects - MUST come before the catch-all redirect
 [[redirects]]
   from = "/api/search"
   to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/search"
   status = 200
   force = true
-  query = {q = ":q", tech = ":tech", category = ":category", sort = ":sort", order = ":order", page = ":page", limit = ":limit", responsive = ":responsive", https = ":https", spa = ":spa", service_worker = ":service_worker"}
 
 [[redirects]]
   from = "/api/website/:domain"
@@ -62,3 +56,9 @@
   to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/technology/:id"
   status = 200
   force = true
+
+# SPA fallback redirect - MUST come last
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
