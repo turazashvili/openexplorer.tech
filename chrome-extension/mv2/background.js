@@ -161,12 +161,10 @@ class OpenTechExplorerBackground {
   }
 
   async init() {
-    console.log('🚀 OpenTechExplorer MV2 Background: Initializing...');
-    
     // Load settings
     await this.loadSettings();
 
-    // Listen for tab updates (navigation)
+    // Listen for tab updates (navigation) - this is crucial for auto-analysis
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       this.handleTabUpdate(tabId, changeInfo, tab);
     });
@@ -182,8 +180,7 @@ class OpenTechExplorerBackground {
       return true; // Keep message channel open
     });
 
-    console.log('✅ OpenTechExplorer MV2 Background: Initialized successfully');
-    console.log('⚙️ Auto-analysis enabled:', this.settings.autoAnalysis);
+    console.log('OpenTechExplorer MV2: Background script initialized with auto-analysis:', this.settings.autoAnalysis);
   }
 
   async loadSettings() {
@@ -205,25 +202,12 @@ class OpenTechExplorerBackground {
         this.settings.autoAnalysis &&
         !this.isBlockedUrl(tab.url)) {
       
-      console.log('🔄 MV2: Tab updated, scheduling analysis for:', tab.url);
+      console.log('OpenTechExplorer MV2: Auto-analyzing tab:', tab.url);
       
       // Schedule analysis with delay to ensure page is ready
       setTimeout(() => {
         this.scheduleAnalysis(tabId, tab.url);
       }, 2000);
-    } else {
-      // Log why we're not analyzing
-      if (changeInfo.status === 'complete') {
-        if (!tab.url) {
-          console.log('❌ MV2: No URL found for tab');
-        } else if (!tab.url.startsWith('http')) {
-          console.log('❌ MV2: URL is not HTTP/HTTPS:', tab.url);
-        } else if (!this.settings.autoAnalysis) {
-          console.log('❌ MV2: Auto-analysis is disabled');
-        } else if (this.isBlockedUrl(tab.url)) {
-          console.log('❌ MV2: URL is blocked:', tab.url);
-        }
-      }
     }
   }
 
@@ -233,7 +217,6 @@ class OpenTechExplorerBackground {
     // When user switches to a tab, check if it needs analysis
     chrome.tabs.get(activeInfo.tabId, (tab) => {
       if (tab.url && tab.url.startsWith('http') && !this.isBlockedUrl(tab.url)) {
-        console.log('🔄 MV2: Tab activated, scheduling analysis for:', tab.url);
         this.scheduleAnalysis(activeInfo.tabId, tab.url);
       }
     });
@@ -250,14 +233,11 @@ class OpenTechExplorerBackground {
     const oneHour = 60 * 60 * 1000;
 
     if (cached && (now - cached.timestamp) < oneHour) {
-      console.log('📋 MV2: Using cached results for:', hostname);
       // Use cached results
       this.storeTabResults(tabId, hostname, cached.technologies, cached.metadata);
       return;
     }
 
-    console.log('🔍 MV2: Starting fresh analysis for:', hostname);
-    
     // Mark as pending and perform analysis
     this.pendingAnalysis.add(tabId);
     this.performBackgroundAnalysis(tabId, url, hostname);
@@ -267,11 +247,10 @@ class OpenTechExplorerBackground {
     try {
       // Double-check URL is not blocked before analysis
       if (this.isBlockedUrl(url)) {
-        console.log('❌ MV2: URL blocked during analysis:', url);
         return;
       }
 
-      console.log('🔬 MV2: Performing background analysis for:', hostname);
+      console.log(`OpenTechExplorer MV2: Auto-analyzing ${hostname}...`);
 
       // Inject content script and analyze
       const results = await this.injectAndAnalyze(tabId);
@@ -280,14 +259,10 @@ class OpenTechExplorerBackground {
         const technologies = results.technologies;
         const metadata = results.metadata || {};
         
-        console.log('✅ MV2: Analysis successful, found', technologies.length, 'technologies for:', hostname);
-        
         // Send to database
         const dbSuccess = await this.sendToDatabase(hostname, technologies, metadata);
         
         if (dbSuccess) {
-          console.log('💾 MV2: Successfully sent to database:', hostname);
-          
           // Cache the results
           this.analysisCache.set(hostname, {
             technologies,
@@ -297,14 +272,12 @@ class OpenTechExplorerBackground {
 
           // Store results for popup
           this.storeTabResults(tabId, hostname, technologies, metadata);
-        } else {
-          console.log('❌ MV2: Failed to send to database:', hostname);
+
+          console.log(`OpenTechExplorer MV2: ✅ Auto-analyzed ${hostname} - found ${technologies.length} technologies`);
         }
-      } else {
-        console.log('❌ MV2: Analysis failed or no results for:', hostname);
       }
     } catch (error) {
-      console.error('❌ MV2: Background analysis error for', hostname, ':', error);
+      console.warn(`OpenTechExplorer MV2: ❌ Auto-analysis failed for ${hostname}:`, error.message);
     } finally {
       this.pendingAnalysis.delete(tabId);
     }
@@ -313,20 +286,15 @@ class OpenTechExplorerBackground {
   async injectAndAnalyze(tabId) {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        console.log('⏰ MV2: Analysis timeout for tab:', tabId);
         reject(new Error('Analysis timeout'));
       }, 8000);
-
-      console.log('💉 MV2: Injecting content script for tab:', tabId);
 
       chrome.tabs.sendMessage(tabId, { action: 'analyze' }, (response) => {
         clearTimeout(timeout);
         
         if (chrome.runtime.lastError) {
-          console.log('❌ MV2: Content script injection error:', chrome.runtime.lastError.message);
           reject(new Error(chrome.runtime.lastError.message));
         } else {
-          console.log('📊 MV2: Content script response received:', response?.success ? 'Success' : 'Failed');
           resolve(response);
         }
       });
@@ -339,7 +307,6 @@ class OpenTechExplorerBackground {
 
     // Final check before sending to database
     if (this.isBlockedUrl(`https://${hostname}`)) {
-      console.log('🚫 MV2: Hostname blocked, not sending to database:', hostname);
       return false;
     }
 
@@ -351,8 +318,6 @@ class OpenTechExplorerBackground {
         scraped_at: new Date().toISOString()
       };
 
-      console.log('📤 MV2: Sending to database:', hostname, 'with', technologies.length, 'technologies');
-
       const response = await fetch(`${SUPABASE_URL}/functions/v1/ingest`, {
         method: 'POST',
         headers: {
@@ -362,18 +327,13 @@ class OpenTechExplorerBackground {
         body: JSON.stringify(payload)
       });
 
-      const success = response.ok;
-      console.log('📡 MV2: Database response:', success ? 'Success' : 'Failed', response.status);
-      
-      return success;
+      return response.ok;
     } catch (error) {
-      console.error('❌ MV2: Database error:', error);
       return false;
     }
   }
 
   storeTabResults(tabId, hostname, technologies, metadata = {}) {
-    console.log('💾 MV2: Storing tab results for:', hostname);
     chrome.storage.local.set({ 
       [`results_${tabId}`]: {
         hostname,
@@ -401,45 +361,36 @@ class OpenTechExplorerBackground {
   }
 
   handleMessage(request, sender, sendResponse) {
-    console.log('📨 MV2: Message received:', request.action);
-    
     switch (request.action) {
       case 'getStoredResults':
         const tabId = request.tabId;
         chrome.storage.local.get([`results_${tabId}`], (result) => {
-          const data = result[`results_${tabId}`] || null;
-          console.log('📋 MV2: Returning stored results for tab', tabId, ':', data ? 'Found' : 'Not found');
-          sendResponse(data);
+          sendResponse(result[`results_${tabId}`] || null);
         });
         break;
 
       case 'updateSettings':
         this.settings = { ...this.settings, ...request.settings };
         chrome.storage.sync.set(request.settings, () => {
-          console.log('⚙️ MV2: Settings updated:', this.settings);
           sendResponse({ success: true });
         });
         break;
 
       case 'getSettings':
-        console.log('⚙️ MV2: Returning settings:', this.settings);
         sendResponse(this.settings);
         break;
 
       case 'clearCache':
         this.analysisCache.clear();
         chrome.storage.local.clear();
-        console.log('🗑️ MV2: Cache cleared');
         sendResponse({ success: true });
         break;
 
       default:
-        console.log('❓ MV2: Unknown message action:', request.action);
         sendResponse({ error: 'Unknown action' });
     }
   }
 }
 
 // Initialize background service
-console.log('🔄 MV2: Creating OpenTechExplorerBackground instance...');
 new OpenTechExplorerBackground();
