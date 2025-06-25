@@ -503,7 +503,6 @@ class TechnologyDetector {
   collectPageMetadata() {
     // Basic page information
     this.metadata.page_title = document.title;
-    this.metadata.page_url = window.location.href;
     this.metadata.page_domain = window.location.hostname;
     this.metadata.page_protocol = window.location.protocol;
     this.metadata.page_language = document.documentElement.lang || 'unknown';
