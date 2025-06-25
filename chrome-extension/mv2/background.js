@@ -289,14 +289,37 @@ class OpenTechExplorerBackground {
         reject(new Error('Analysis timeout'));
       }, 8000);
 
+      // Try to send message first (content script might already be loaded from manifest)
       chrome.tabs.sendMessage(tabId, { action: 'analyze' }, (response) => {
-        clearTimeout(timeout);
-        
         if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
-          resolve(response);
+          // Content script not ready, inject it manually (MV2 approach)
+          console.log('OpenTechExplorer MV2: Content script not ready, injecting manually...');
+          chrome.tabs.executeScript(tabId, {
+            file: 'content.js'
+          }, () => {
+            if (chrome.runtime.lastError) {
+              clearTimeout(timeout);
+              reject(new Error(`Script injection failed: ${chrome.runtime.lastError.message}`));
+              return;
+            }
+            
+            // Try sending message again after injection
+            chrome.tabs.sendMessage(tabId, { action: 'analyze' }, (response) => {
+              clearTimeout(timeout);
+              
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+              } else {
+                resolve(response);
+              }
+            });
+          });
+          return;
         }
+        
+        // Content script was already ready
+        clearTimeout(timeout);
+        resolve(response);
       });
     });
   }
