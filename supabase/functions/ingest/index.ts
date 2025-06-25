@@ -218,6 +218,9 @@ function categorizeTechnology(techName: string): string {
     ],
     'JavaScript Library': [
       'jQuery'
+    ],
+    'Backend Service': [
+      'Supabase', 'Firebase', 'AWS Amplify', 'Vercel', 'Netlify'
     ]
   };
 
