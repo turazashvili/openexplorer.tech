@@ -408,6 +408,9 @@ class OpenTechExplorerBackground {
         chrome.storage.local.get([`results_${tabId}`], (localResult) => {
           const storageData = localResult || {};
           sendResponse(storageData[`results_${tabId}`] || null);
+        });
+        break;
+
       case 'clearCache':
         this.analysisCache.clear();
         chrome.storage.local.clear();
