@@ -1,0 +1,6 @@
+/api/search https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/search 200
+/api/website/* https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/website-by-domain/:splat 200
+/api/technology/* https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/technology/:splat 200
+
+# SPA fallback - MUST be last
+/* /index.html 200
