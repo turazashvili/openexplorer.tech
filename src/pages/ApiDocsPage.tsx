@@ -64,7 +64,7 @@ const ApiDocsPage: React.FC = () => {
     language = 'bash', 
     copyKey 
   }) => (
-    <div className="relative">
+    <div className="relative w-full">
       <div className="flex items-center justify-between bg-gray-800 text-white px-4 py-2 rounded-t-lg">
         <span className="text-sm font-medium text-gray-300">{language}</span>
         <button
@@ -84,9 +84,11 @@ const ApiDocsPage: React.FC = () => {
           )}
         </button>
       </div>
-      <pre className="bg-gray-900 text-gray-100 p-4 rounded-b-lg overflow-x-auto">
-        <code>{children}</code>
-      </pre>
+      <div className="bg-gray-900 text-gray-100 p-4 rounded-b-lg overflow-x-auto max-w-full">
+        <pre className="whitespace-pre-wrap break-all text-sm leading-relaxed">
+          <code>{children}</code>
+        </pre>
+      </div>
     </div>
   );
 
@@ -139,7 +141,7 @@ const ApiDocsPage: React.FC = () => {
   const examples = {
     search: {
       request: `curl -H "Authorization: Bearer ${anonKey}" \\
-     "https://openexplorer.tech/api/search?q=react&limit=10&responsive=true"`,
+  "https://openexplorer.tech/api/search?q=react&limit=10&responsive=true"`,
       response: `{
   "results": [
     {
@@ -175,7 +177,7 @@ const ApiDocsPage: React.FC = () => {
     },
     website: {
       request: `curl -H "Authorization: Bearer ${anonKey}" \\
-     "https://openexplorer.tech/api/website/example.com"`,
+  "https://openexplorer.tech/api/website/example.com"`,
       response: `{
   "id": "123e4567-e89b-12d3-a456-426614174000",
   "url": "example.com",
@@ -206,7 +208,7 @@ const ApiDocsPage: React.FC = () => {
     },
     technology: {
       request: `curl -H "Authorization: Bearer ${anonKey}" \\
-     "https://openexplorer.tech/api/technology/tech-123"`,
+  "https://openexplorer.tech/api/technology/tech-123"`,
       response: `{
   "id": "tech-123",
   "name": "React",
@@ -263,15 +265,15 @@ const ApiDocsPage: React.FC = () => {
               <CodeBlock copyKey="quickstart" language="bash">
 {`# Search for React websites
 curl -H "Authorization: Bearer ${anonKey}" \\
-     "https://openexplorer.tech/api/search?q=react&limit=5"
+  "https://openexplorer.tech/api/search?q=react&limit=5"
 
-# Get details for a specific website
+# Get details for a specific website  
 curl -H "Authorization: Bearer ${anonKey}" \\
-     "https://openexplorer.tech/api/website/github.com"
+  "https://openexplorer.tech/api/website/github.com"
 
 # Find all websites using a specific technology
 curl -H "Authorization: Bearer ${anonKey}" \\
-     "https://openexplorer.tech/api/search?tech=Next.js"`}
+  "https://openexplorer.tech/api/search?tech=Next.js"`}
               </CodeBlock>
               <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex items-start space-x-2">
