@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Download } from 'lucide-react';
 
 const Header: React.FC = () => {
   return (
@@ -15,8 +16,30 @@ const Header: React.FC = () => {
             <span className="text-lg sm:text-xl font-bold text-gray-900">Open Tech Explorer</span>
           </Link>
           
-          {/* Large Bolt.new Badge - Close to Right Edge */}
-          <div className="flex items-center">
+          {/* Firefox Install Link and Bolt.new Badge */}
+          <div className="flex items-center space-x-3">
+            <a
+              href="https://addons.mozilla.org/en-US/firefox/addon/openexplorer_tech/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:flex items-center px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+              title="Install Firefox Extension"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Install Firefox Extension
+            </a>
+            
+            {/* Mobile install link */}
+            <a
+              href="https://addons.mozilla.org/en-US/firefox/addon/openexplorer_tech/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sm:hidden flex items-center justify-center w-10 h-10 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+              title="Install Firefox Extension"
+            >
+              <Download className="h-4 w-4" />
+            </a>
+            
             <a
               href="https://bolt.new/"
               target="_blank"
