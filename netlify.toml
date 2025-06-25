@@ -38,26 +38,29 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# API Redirects - MUST come before the catch-all redirect
+# API Redirects - These MUST come before any catch-all redirects
 [[redirects]]
-  from = "/api/search"
-  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/search"
+  from = "/api/search*"
+  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/search:splat"
   status = 200
   force = true
+  headers = {X-From = "Netlify"}
 
 [[redirects]]
-  from = "/api/website/:domain"
-  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/website-by-domain/:domain"
+  from = "/api/website/*"
+  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/website-by-domain/:splat"
   status = 200
   force = true
+  headers = {X-From = "Netlify"}
 
 [[redirects]]
-  from = "/api/technology/:id"
-  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/technology/:id"
+  from = "/api/technology/*"
+  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/technology/:splat"
   status = 200
   force = true
+  headers = {X-From = "Netlify"}
 
-# SPA fallback redirect - MUST come last
+# SPA fallback redirect - MUST come last to catch all non-API routes
 [[redirects]]
   from = "/*"
   to = "/index.html"
