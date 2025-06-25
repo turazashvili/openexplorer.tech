@@ -13,16 +13,10 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Initialize Supabase client with anon key for public access
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
     // Extract technology ID from URL path
@@ -39,8 +33,6 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
-
-    console.log('🔍 Public API: Looking for technology with ID:', techId);
 
     // Fetch technology with websites
     const { data: technology, error } = await supabaseClient
@@ -71,8 +63,6 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
-
-    console.log('✅ Found technology:', technology.name);
 
     // Transform the data
     const result = {

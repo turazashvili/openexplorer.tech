@@ -13,16 +13,10 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Initialize Supabase client with anon key for public access
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
     // Parse query parameters
@@ -35,7 +29,7 @@ Deno.serve(async (req: Request) => {
     const sortBy = searchParams.get('sort') || 'last_scraped';
     const sortOrder = searchParams.get('order') || 'desc';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100); // Cap at 100
+    const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
 
     // Metadata filters
@@ -44,7 +38,7 @@ Deno.serve(async (req: Request) => {
     const isSpa = searchParams.get('spa');
     const hasServiceWorker = searchParams.get('service_worker');
 
-    console.log('🔍 Public API Search:', { query, category, tech, isResponsive, isHttps, isSpa, hasServiceWorker });
+    console.log('🔍 Search params:', { query, category, tech, isResponsive, isHttps, isSpa, hasServiceWorker });
 
     // Enhanced query analysis
     const cleanQuery = query.trim().toLowerCase();

@@ -13,16 +13,10 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Initialize Supabase client with anon key for public access
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
     // Extract domain from URL path
@@ -40,7 +34,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log('🔍 Public API: Looking for website with domain:', domain);
+    console.log('🔍 Looking for website with domain:', domain);
 
     // Fetch website with technologies and metadata by domain
     const { data: website, error } = await supabaseClient
