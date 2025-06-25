@@ -197,6 +197,20 @@ Deno.serve(async (req: Request) => {
         `)
         .ilike('website_technologies.technologies.name', `%${cleanQuery}%`);
 
+      // FIXED: Create proper count query for technology search
+      let techCountQueryBuilder = supabaseClient
+        .from('website_technologies')
+        .select('website_id', { count: 'exact', head: true })
+        .ilike('technologies.name', `%${cleanQuery}%`);
+
+      // If we have metadata filters, we need to join with websites table for tech count
+      if (isResponsive || isHttps || isSpa || hasServiceWorker) {
+        techCountQueryBuilder = supabaseClient
+          .from('website_technologies')
+          .select('websites!inner(*), technologies!inner(*)', { count: 'exact', head: true })
+          .ilike('technologies.name', `%${cleanQuery}%`);
+      }
+
       // Apply metadata filters to both queries
       const applyMetadataFilters = (builder: any) => {
         if (isResponsive !== null && isResponsive !== '') {
@@ -217,6 +231,19 @@ Deno.serve(async (req: Request) => {
       queryBuilder = applyMetadataFilters(queryBuilder);
       countQueryBuilder = applyMetadataFilters(countQueryBuilder);
       techQueryBuilder = applyMetadataFilters(techQueryBuilder);
+      
+      // Apply metadata filters to tech count query (if using websites join)
+      if (isResponsive || isHttps || isSpa || hasServiceWorker) {
+        const applyMetadataFiltersToTechCount = (builder: any) => {
+          if (isResponsive !== null && isResponsive !== '') builder = builder.eq('websites.metadata->>is_responsive', isResponsive === 'true');
+          if (isHttps !== null && isHttps !== '') builder = builder.eq('websites.metadata->>is_https', isHttps === 'true');
+          if (isSpa !== null && isSpa !== '') builder = builder.eq('websites.metadata->>likely_spa', isSpa === 'true');
+          if (hasServiceWorker !== null && hasServiceWorker !== '') builder = builder.eq('websites.metadata->>has_service_worker', hasServiceWorker === 'true');
+          return builder;
+        };
+        
+        techCountQueryBuilder = applyMetadataFiltersToTechCount(techCountQueryBuilder);
+      }
 
       // Apply sorting
       const applySorting = (builder: any) => {
@@ -232,10 +259,12 @@ Deno.serve(async (req: Request) => {
       queryBuilder = applySorting(queryBuilder);
       techQueryBuilder = applySorting(techQueryBuilder);
 
-      // Execute both URL and technology searches
-      const [urlResults, techResults] = await Promise.all([
+      // Execute both URL and technology searches, plus count queries
+      const [urlResults, techResults, urlCountResult, techCountResult] = await Promise.all([
         queryBuilder.range(offset, offset + limit - 1),
-        techQueryBuilder.range(0, limit - 1)
+        techQueryBuilder.range(0, limit - 1),
+        countQueryBuilder,
+        techCountQueryBuilder
       ]);
 
       // Combine and deduplicate results
@@ -262,14 +291,12 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // Get total count
-      const { count: urlCount } = await countQueryBuilder;
-      const { count: techCount } = await supabaseClient
-        .from('website_technologies')
-        .select('website_id', { count: 'exact', head: true })
-        .ilike('technologies.name', `%${cleanQuery}%`);
+      // FIXED: Use the proper count results
+      const { count: urlCount } = urlCountResult;
+      const { count: techCount } = techCountResult;
 
-      const totalCount = Math.max(urlCount || 0, techCount || 0);
+      // FIXED: Better count combination - sum both types since we're showing combined results
+      const totalCount = (urlCount || 0) + (techCount || 0);
 
       // Transform the combined data
       const results = allWebsites.map(website => {
@@ -331,6 +358,7 @@ Deno.serve(async (req: Request) => {
             totalFound: results.length,
             urlResults: urlResults.data?.length || 0,
             techResults: techResults.data?.length || 0
+            totalCount: totalCount
           }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
