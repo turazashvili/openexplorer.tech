@@ -42,3 +42,23 @@
   for = "/*.woff2"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# API Redirects - Provide clean API endpoints
+[[redirects]]
+  from = "/api/search"
+  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/search"
+  status = 200
+  force = true
+  query = {q = ":q", tech = ":tech", category = ":category", sort = ":sort", order = ":order", page = ":page", limit = ":limit", responsive = ":responsive", https = ":https", spa = ":spa", service_worker = ":service_worker"}
+
+[[redirects]]
+  from = "/api/website/:domain"
+  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/website-by-domain/:domain"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/technology/:id"
+  to = "https://catnatrzpjqcwqnppgkf.supabase.co/functions/v1/technology/:id"
+  status = 200
+  force = true

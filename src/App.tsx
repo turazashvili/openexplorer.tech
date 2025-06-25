@@ -6,6 +6,7 @@ import ScrollToTop from './components/ScrollToTop';
 import SearchPage from './pages/SearchPage';
 import WebsiteDetailsPage from './pages/WebsiteDetailsPage';
 import TechnologyDetailsPage from './pages/TechnologyDetailsPage';
+import ApiDocsPage from './pages/ApiDocsPage';
 import ExtensionPage from './pages/ExtensionPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
@@ -21,6 +22,7 @@ function App() {
           <Route path="/" element={<SearchPage />} />
           <Route path="/website/:domain" element={<WebsiteDetailsPage />} />
           <Route path="/technology/:id" element={<TechnologyDetailsPage />} />
+          <Route path="/api-docs" element={<ApiDocsPage />} />
           <Route path="/extension" element={<ExtensionPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />

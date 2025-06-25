@@ -46,6 +46,11 @@ const Footer: React.FC = () => {
                 </a>
               </li>
               <li>
+                <Link to="/api-docs" className="text-gray-600 hover:text-gray-900 transition-colors">
+                  API Documentation
+                </Link>
+              </li>
+              <li>
                 <a
                   href="https://bolt.new/"
                   target="_blank"
