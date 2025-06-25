@@ -6,6 +6,7 @@ import ScrollToTop from './components/ScrollToTop';
 import SearchPage from './pages/SearchPage';
 import WebsiteDetailsPage from './pages/WebsiteDetailsPage';
 import TechnologyDetailsPage from './pages/TechnologyDetailsPage';
+import ExtensionPage from './pages/ExtensionPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import StaticTechnologyRoutes from './components/StaticTechnologyRoutes';
@@ -20,6 +21,7 @@ function App() {
           <Route path="/" element={<SearchPage />} />
           <Route path="/website/:domain" element={<WebsiteDetailsPage />} />
           <Route path="/technology/:id" element={<TechnologyDetailsPage />} />
+          <Route path="/extension" element={<ExtensionPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           {/* Static technology routes - these will handle all technology pages */}
