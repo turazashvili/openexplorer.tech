@@ -46,7 +46,8 @@ class OpenTechExplorerPopup {
       this.analyzeTechnologies();
     });
 
-    document.getElementById('viewDatabase').addEventListener('click', () => {
+    document.getElementById('viewDatabase').addEventListener('click', (e) => {
+      e.preventDefault(); // Prevent the default anchor link behavior
       if (this.currentTab && this.currentTab.url && this.currentTab.url.startsWith('http')) {
         try {
           const url = new URL(this.currentTab.url);
