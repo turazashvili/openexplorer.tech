@@ -21,7 +21,7 @@ const PrivacyPage: React.FC = () => {
               <Shield className="h-8 w-8 text-blue-600" />
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Privacy Policy</h1>
-                <p className="text-gray-600 mt-1">Last updated: January 2025</p>
+                <p className="text-gray-600 mt-1">Last updated: June 2025</p>
               </div>
             </div>
           </div>
