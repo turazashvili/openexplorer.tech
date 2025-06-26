@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ExternalLink, Clock, Calendar, ArrowLeft, Shield, Smartphone, Zap, Globe } from 'lucide-react';
+import { ExternalLink, Clock, Calendar, ArrowLeft, Shield, Smartphone, Zap, Globe, ChevronDown, ChevronRight, Database, Code } from 'lucide-react';
 import { getWebsiteDetailsByDomain, WebsiteDetails } from '../lib/api';
 import { findTechnology } from '../utils/staticTechnologies';
 
@@ -9,6 +9,7 @@ const WebsiteDetailsPage: React.FC = () => {
   const [website, setWebsite] = useState<WebsiteDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showMetadata, setShowMetadata] = useState(false);
 
   useEffect(() => {
     if (domain) {
@@ -72,6 +73,60 @@ const WebsiteDetailsPage: React.FC = () => {
     return features;
   };
 
+  const getMetadataCategories = (metadata: Record<string, any>) => {
+    const categories = {
+      'Page Information': {
+        icon: Globe,
+        color: 'text-blue-600',
+        fields: ['page_title', 'page_domain', 'page_protocol', 'page_language', 'charset']
+      },
+      'Performance': {
+        icon: Zap,
+        color: 'text-green-600',
+        fields: ['page_load_time', 'dom_ready_time', 'script_count', 'stylesheet_count', 'image_count', 'form_count']
+      },
+      'SEO & Social': {
+        icon: Globe,
+        color: 'text-purple-600',
+        fields: ['meta_description_length', 'has_meta_keywords', 'has_open_graph', 'has_twitter_cards', 'has_favicon']
+      },
+      'Features': {
+        icon: Shield,
+        color: 'text-orange-600',
+        fields: ['is_https', 'is_responsive', 'likely_spa', 'has_service_worker', 'uses_lazy_loading', 'uses_resource_hints']
+      },
+      'External Resources': {
+        icon: ExternalLink,
+        color: 'text-indigo-600',
+        fields: ['external_script_count', 'external_script_domains', 'uses_google_fonts']
+      },
+      'Analytics & Tracking': {
+        icon: Database,
+        color: 'text-red-600',
+        fields: ['ga_tracking_id', 'gtm_id', 'shopify_shop']
+      },
+      'Technology Versions': {
+        icon: Code,
+        color: 'text-gray-600',
+        fields: ['react_version', 'vue_version', 'angular_version', 'jquery_version', 'lodash_version', 'moment_version']
+      }
+    };
+
+    return categories;
+  };
+
+  const formatMetadataValue = (key: string, value: any): string => {
+    if (value === null || value === undefined) return 'N/A';
+    if (typeof value === 'boolean') return value ? '✅ Yes' : '❌ No';
+    if (Array.isArray(value)) return value.length > 0 ? value.join(', ') : 'None';
+    if (typeof value === 'number') {
+      if (key.includes('time')) return `${value.toLocaleString()}ms`;
+      if (key.includes('count')) return value.toLocaleString();
+      return value.toString();
+    }
+    return value.toString();
+  };
+
   // Helper function to create SEO-friendly technology URLs using static technology data
   const getTechnologyUrl = (techName: string) => {
     const staticTech = findTechnology(techName);
@@ -123,6 +178,8 @@ const WebsiteDetailsPage: React.FC = () => {
 
   const groupedTechnologies = groupTechnologiesByCategory(website.technologies);
   const metadataFeatures = getMetadataFeatures(website.metadata);
+  const metadataCategories = getMetadataCategories(website.metadata);
+  const hasMetadata = Object.keys(website.metadata).length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 sm:py-16 px-4 sm:px-6 lg:px-8">
@@ -263,6 +320,98 @@ const WebsiteDetailsPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Technical Metadata */}
+          {hasMetadata && (
+            <div className="px-4 sm:px-8 py-6 border-t border-gray-200 bg-gray-50">
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowMetadata(!showMetadata)}
+                  className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
+                >
+                  {showMetadata ? (
+                    <ChevronDown className="h-5 w-5" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5" />
+                  )}
+                  <Database className="h-5 w-5" />
+                  <span className="font-semibold">Technical Metadata</span>
+                  <span className="text-sm text-gray-500">
+                    ({Object.keys(website.metadata).length} fields)
+                  </span>
+                </button>
+              </div>
+
+              {showMetadata && (
+                <div className="space-y-6">
+                  {Object.entries(metadataCategories).map(([categoryName, category]) => {
+                    const categoryFields = category.fields.filter(field => 
+                      website.metadata.hasOwnProperty(field) && 
+                      website.metadata[field] !== null && 
+                      website.metadata[field] !== undefined
+                    );
+
+                    if (categoryFields.length === 0) return null;
+
+                    const Icon = category.icon;
+                    return (
+                      <div key={categoryName} className="bg-white rounded-lg p-4 border border-gray-200">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <Icon className={`h-4 w-4 ${category.color}`} />
+                          <h4 className="font-semibold text-gray-900">{categoryName}</h4>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {categoryFields.map(field => (
+                            <div key={field} className="flex justify-between items-start">
+                              <span className="text-sm text-gray-600 capitalize flex-shrink-0 mr-2">
+                                {field.replace(/_/g, ' ')}:
+                              </span>
+                              <span className="text-sm font-medium text-gray-900 text-right break-all">
+                                {formatMetadataValue(field, website.metadata[field])}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Other uncategorized fields */}
+                  {(() => {
+                    const categorizedFields = Object.values(metadataCategories).flatMap(cat => cat.fields);
+                    const uncategorizedFields = Object.keys(website.metadata).filter(
+                      field => !categorizedFields.includes(field) && 
+                      website.metadata[field] !== null && 
+                      website.metadata[field] !== undefined
+                    );
+
+                    if (uncategorizedFields.length === 0) return null;
+
+                    return (
+                      <div className="bg-white rounded-lg p-4 border border-gray-200">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <Code className="h-4 w-4 text-gray-600" />
+                          <h4 className="font-semibold text-gray-900">Other Technical Data</h4>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {uncategorizedFields.map(field => (
+                            <div key={field} className="flex justify-between items-start">
+                              <span className="text-sm text-gray-600 capitalize flex-shrink-0 mr-2">
+                                {field.replace(/_/g, ' ')}:
+                              </span>
+                              <span className="text-sm font-medium text-gray-900 text-right break-all">
+                                {formatMetadataValue(field, website.metadata[field])}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
