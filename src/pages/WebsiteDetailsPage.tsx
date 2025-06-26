@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ExternalLink, Clock, Calendar, ArrowLeft, Shield, Smartphone, Zap, Globe, ChevronDown, ChevronRight, Database, Code, RotateCcw, Move } from 'lucide-react';
+import { ExternalLink, Clock, Calendar, ArrowLeft, Shield, Smartphone, Zap, Globe, ChevronDown, ChevronRight, Database, Code, RotateCcw, GripVertical } from 'lucide-react';
 import { getWebsiteDetailsByDomain, WebsiteDetails } from '../lib/api';
 import { findTechnology } from '../utils/staticTechnologies';
 import { useMetadataOrder } from '../hooks/useMetadataOrder';
@@ -369,8 +370,8 @@ const WebsiteDetailsPage: React.FC = () => {
                 {showMetadata && (
                   <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
                     <div className="flex items-center space-x-1">
-                      <Move className="h-4 w-4" />
-                      <span>Drag containers to reorder</span>
+                      <GripVertical className="h-4 w-4" />
+                      <span>Hover and drag the grip icon to reorder sections</span>
                     </div>
                     <button
                       onClick={resetOrder}

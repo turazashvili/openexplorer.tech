@@ -23,6 +23,7 @@ const DraggableMetadataContainer: React.FC<DraggableMetadataContainerProps> = ({
   isOver
 }) => {
   const [isDraggedOver, setIsDraggedOver] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -51,27 +52,46 @@ const DraggableMetadataContainer: React.FC<DraggableMetadataContainerProps> = ({
     setIsDraggedOver(false);
   };
 
+  // Prevent dragging when starting from text content
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // If the mousedown is on text content (not the drag handle), prevent container dragging
+    const target = e.target as HTMLElement;
+    if (target.closest('.drag-handle')) {
+      return; // Allow dragging from the handle
+    }
+    // For text content, ensure normal text selection behavior
+    e.stopPropagation();
+  };
+
   return (
     <div
-      draggable
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onMouseDown={handleMouseDown}
       className={`
-        relative bg-white rounded-lg border border-gray-200 transition-all duration-200 cursor-move
+        relative bg-white rounded-lg border border-gray-200 transition-all duration-200
         ${isDragging ? 'opacity-50 scale-95 shadow-lg' : ''}
         ${isDraggedOver ? 'border-blue-400 shadow-md' : ''}
         ${isOver ? 'transform translate-y-1' : ''}
         hover:shadow-md
       `}
     >
-      {/* Drag Handle */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        <div className="p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing">
-          <GripVertical className="h-4 w-4" />
-        </div>
+      {/* Dedicated Drag Handle */}
+      <div
+        draggable
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        className={`
+          drag-handle absolute top-2 right-2 p-2 rounded cursor-grab active:cursor-grabbing
+          transition-all duration-200 hover:bg-gray-100
+          ${isHovered ? 'opacity-100' : 'opacity-0'}
+        `}
+        title="Drag to reorder"
+      >
+        <GripVertical className="h-4 w-4 text-gray-500" />
       </div>
       
       {/* Drop indicator */}
@@ -79,7 +99,8 @@ const DraggableMetadataContainer: React.FC<DraggableMetadataContainerProps> = ({
         <div className="absolute inset-0 border-2 border-blue-400 border-dashed rounded-lg pointer-events-none" />
       )}
       
-      <div className="p-4 group">
+      {/* Content area - allows normal text selection */}
+      <div className="p-4 pr-12 select-text">
         {children}
       </div>
     </div>
