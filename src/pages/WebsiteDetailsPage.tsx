@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ExternalLink, Clock, Calendar, ArrowLeft, Shield, Smartphone, Zap, Globe, ChevronDown, ChevronRight, Database, Code } from 'lucide-react';
+import { ExternalLink, Clock, Calendar, ArrowLeft, Shield, Smartphone, Zap, Globe, ChevronDown, ChevronRight, Database, Code, RotateCcw, Move } from 'lucide-react';
 import { getWebsiteDetailsByDomain, WebsiteDetails } from '../lib/api';
 import { findTechnology } from '../utils/staticTechnologies';
+import { useMetadataOrder } from '../hooks/useMetadataOrder';
+import DraggableMetadataContainer from '../components/DraggableMetadataContainer';
 
 const WebsiteDetailsPage: React.FC = () => {
   const { domain } = useParams<{ domain: string }>();
@@ -10,6 +12,10 @@ const WebsiteDetailsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMetadata, setShowMetadata] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  
+  const { getOrderedCategories, updateOrder, resetOrder, isLoaded } = useMetadataOrder();
 
   useEffect(() => {
     if (domain) {
@@ -73,46 +79,36 @@ const WebsiteDetailsPage: React.FC = () => {
     return features;
   };
 
-  const getMetadataCategories = (metadata: Record<string, any>) => {
-    const categories = {
-      'Page Information': {
-        icon: Globe,
-        color: 'text-blue-600',
-        fields: ['page_title', 'page_domain', 'page_protocol', 'page_language', 'charset']
-      },
-      'Performance': {
-        icon: Zap,
-        color: 'text-green-600',
-        fields: ['page_load_time', 'dom_ready_time', 'script_count', 'stylesheet_count', 'image_count', 'form_count']
-      },
-      'SEO & Social': {
-        icon: Globe,
-        color: 'text-purple-600',
-        fields: ['meta_description_length', 'has_meta_keywords', 'has_open_graph', 'has_twitter_cards', 'has_favicon']
-      },
-      'Features': {
-        icon: Shield,
-        color: 'text-orange-600',
-        fields: ['is_https', 'is_responsive', 'likely_spa', 'has_service_worker', 'uses_lazy_loading', 'uses_resource_hints']
-      },
-      'External Resources': {
-        icon: ExternalLink,
-        color: 'text-indigo-600',
-        fields: ['external_script_count', 'external_script_domains', 'uses_google_fonts']
-      },
-      'Analytics & Tracking': {
-        icon: Database,
-        color: 'text-red-600',
-        fields: ['ga_tracking_id', 'gtm_id', 'shopify_shop']
-      },
-      'Technology Versions': {
-        icon: Code,
-        color: 'text-gray-600',
-        fields: ['react_version', 'vue_version', 'angular_version', 'jquery_version', 'lodash_version', 'moment_version']
+  const getMetadataCategories = () => {
+    return getOrderedCategories().map(category => {
+      let icon;
+      switch (category.id) {
+        case 'page-info':
+          icon = Globe;
+          break;
+        case 'performance':
+          icon = Zap;
+          break;
+        case 'seo-social':
+          icon = Globe;
+          break;
+        case 'features':
+          icon = Shield;
+          break;
+        case 'external-resources':
+          icon = ExternalLink;
+          break;
+        case 'analytics':
+          icon = Database;
+          break;
+        case 'versions':
+          icon = Code;
+          break;
+        default:
+          icon = Code;
       }
-    };
-
-    return categories;
+      return { ...category, icon };
+    });
   };
 
   const formatMetadataValue = (key: string, value: any): string => {
@@ -125,6 +121,35 @@ const WebsiteDetailsPage: React.FC = () => {
       return value.toString();
     }
     return value.toString();
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
+      const categories = getMetadataCategories();
+      const newOrder = [...categories];
+      const draggedItem = newOrder[draggedIndex];
+      
+      // Remove the dragged item
+      newOrder.splice(draggedIndex, 1);
+      // Insert it at the new position
+      newOrder.splice(dragOverIndex, 0, draggedItem);
+      
+      // Update the order in storage
+      updateOrder(newOrder.map(cat => cat.id));
+    }
+    
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragOver = (index: number) => {
+    if (draggedIndex !== null) {
+      setDragOverIndex(index);
+    }
   };
 
   // Helper function to create SEO-friendly technology URLs using static technology data
@@ -178,7 +203,7 @@ const WebsiteDetailsPage: React.FC = () => {
 
   const groupedTechnologies = groupTechnologiesByCategory(website.technologies);
   const metadataFeatures = getMetadataFeatures(website.metadata);
-  const metadataCategories = getMetadataCategories(website.metadata);
+  const metadataCategories = getMetadataCategories();
   const hasMetadata = Object.keys(website.metadata).length > 0;
 
   return (
@@ -327,7 +352,7 @@ const WebsiteDetailsPage: React.FC = () => {
               <div className="mb-4">
                 <button
                   onClick={() => setShowMetadata(!showMetadata)}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
+                  className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors mb-2"
                 >
                   {showMetadata ? (
                     <ChevronDown className="h-5 w-5" />
@@ -340,6 +365,23 @@ const WebsiteDetailsPage: React.FC = () => {
                     ({Object.keys(website.metadata).length} fields)
                   </span>
                 </button>
+                
+                {showMetadata && (
+                  <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
+                    <div className="flex items-center space-x-1">
+                      <Move className="h-4 w-4" />
+                      <span>Drag containers to reorder</span>
+                    </div>
+                    <button
+                      onClick={resetOrder}
+                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 transition-colors"
+                      title="Reset to default order"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      <span>Reset order</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {showMetadata && (
@@ -355,10 +397,19 @@ const WebsiteDetailsPage: React.FC = () => {
 
                     const Icon = category.icon;
                     return (
-                      <div key={categoryName} className="bg-white rounded-lg p-4 border border-gray-200">
+                      <DraggableMetadataContainer
+                        key={category.id}
+                        id={category.id}
+                        index={metadataCategories.indexOf(category)}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        onDragOver={handleDragOver}
+                        isDragging={draggedIndex === metadataCategories.indexOf(category)}
+                        isOver={dragOverIndex === metadataCategories.indexOf(category)}
+                      >
                         <div className="flex items-center space-x-2 mb-3">
                           <Icon className={`h-4 w-4 ${category.color}`} />
-                          <h4 className="font-semibold text-gray-900">{categoryName}</h4>
+                          <h4 className="font-semibold text-gray-900">{category.name}</h4>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {categoryFields.map(field => (
@@ -372,7 +423,7 @@ const WebsiteDetailsPage: React.FC = () => {
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </DraggableMetadataContainer>
                     );
                   })}
 
@@ -388,7 +439,16 @@ const WebsiteDetailsPage: React.FC = () => {
                     if (uncategorizedFields.length === 0) return null;
 
                     return (
-                      <div className="bg-white rounded-lg p-4 border border-gray-200">
+                      <DraggableMetadataContainer
+                        key="uncategorized"
+                        id="uncategorized"
+                        index={metadataCategories.length}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        onDragOver={handleDragOver}
+                        isDragging={draggedIndex === metadataCategories.length}
+                        isOver={dragOverIndex === metadataCategories.length}
+                      >
                         <div className="flex items-center space-x-2 mb-3">
                           <Code className="h-4 w-4 text-gray-600" />
                           <h4 className="font-semibold text-gray-900">Other Technical Data</h4>
@@ -405,7 +465,7 @@ const WebsiteDetailsPage: React.FC = () => {
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </DraggableMetadataContainer>
                     );
                   })()}
                 </div>
