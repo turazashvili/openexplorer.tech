@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ExternalLink, Clock, Calendar, ArrowLeft, Shield, Smartphone, Zap, Globe, ChevronDown, ChevronRight, Database, Code, RotateCcw, Move } from 'lucide-react';
-import { ExternalLink, Clock, Calendar, ArrowLeft, Shield, Smartphone, Zap, Globe, ChevronDown, ChevronRight, Database, Code, RotateCcw, GripVertical } from 'lucide-react';
+import { ExternalLink, Clock, Calendar, ArrowLeft, Shield, Smartphone, Zap, Globe, ChevronDown, ChevronRight, Database, Code, RotateCcw, Move, GripVertical } from 'lucide-react';
 import { getWebsiteDetailsByDomain, WebsiteDetails } from '../lib/api';
 import { findTechnology } from '../utils/staticTechnologies';
 import { useMetadataOrder } from '../hooks/useMetadataOrder';
