@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Open Tech Explorer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Discover website technologies and contribute to the Open Tech Explorer database. Analyze any website's tech stack instantly.",
   
   "permissions": [

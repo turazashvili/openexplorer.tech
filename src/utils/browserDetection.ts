@@ -40,7 +40,7 @@ export function getExtensionUrl(): { url: string; storeName: string } {
   } else if (browser.isChromiumBased) {
     // Default Chrome Web Store link (to be updated later)
     return {
-      url: 'https://chrome.google.com/webstore',
+      url: 'https://chromewebstore.google.com/detail/open-tech-explorer/lclnkljbejkneihkhadnobhhnjcopkge?utm_source=openexplorer.tech&utm_medium=navbar&utm_campaign=open-tech-explorer&utm_content=chrome-webstore-link',
       storeName: 'Chrome Web Store'
     };
   } else {
