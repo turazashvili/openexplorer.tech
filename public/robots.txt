@@ -15,8 +15,10 @@ Allow: /extension
 Allow: /privacy
 Allow: /terms
 
-# Sitemap location
+# Sitemap locations
 Sitemap: https://openexplorer.tech/sitemap.xml
+Sitemap: https://openexplorer.tech/sitemap-main.xml
+Sitemap: https://openexplorer.tech/sitemap-technologies.xml
 Sitemap: https://openexplorer.tech/sitemap-websites.xml
 
 # Optional crawl delay to be respectful to our servers
