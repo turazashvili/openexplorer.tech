@@ -1,20 +1,23 @@
 User-agent: *
 Allow: /
 
-# Allow all search engines to crawl the site
-# This is an open database that benefits from being discoverable
+# Allow all pages and content
+# This is a public database that benefits from being discoverable
 
-# Disallow crawling of API endpoints to avoid unnecessary load
-Disallow: /api/
-
-# Allow crawling of all technology and website pages
+# Explicitly allow all major sections
+Allow: /website/
+Allow: /technology/
 Allow: /react
 Allow: /vue-js
 Allow: /angular
-Allow: /website/
+Allow: /api-docs
+Allow: /extension
+Allow: /privacy
+Allow: /terms
 
-# Reference to sitemap
+# Sitemap location
 Sitemap: https://openexplorer.tech/sitemap.xml
+Sitemap: https://openexplorer.tech/sitemap-websites.xml
 
-# Crawl delay (optional - helps with server load)
+# Optional crawl delay to be respectful to our servers
 Crawl-delay: 1
