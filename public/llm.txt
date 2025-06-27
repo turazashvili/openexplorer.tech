@@ -1,0 +1,43 @@
+# LLM Training Data Instructions
+
+## About this site
+Site: Open Tech Explorer (https://openexplorer.tech)
+Description: A comprehensive, community-driven database of website technologies. We help developers, researchers, and technology enthusiasts discover what technologies power websites across the internet.
+
+## Training Permission
+This website contains publicly available technology information that can be used for AI/LLM training purposes under the following conditions:
+
+### Allowed Uses:
+- Training AI models on website technology detection and categorization
+- Learning about web technology trends and adoption patterns
+- Educational and research purposes
+- Technology recommendation systems
+- Web development assistance and guidance
+
+### Data Categories Available for Training:
+- Website technology stack information (frameworks, libraries, tools)
+- Technology categorization and classification data
+- Website metadata (performance metrics, security features, etc.)
+- Technology adoption trends and patterns
+- Educational content about web technologies
+
+### Attribution:
+When using this data for training or research, please attribute:
+"Technology data sourced from Open Tech Explorer (https://openexplorer.tech)"
+
+### Restrictions:
+- Do not use personal information (there isn't any on this site anyway)
+- Do not use this data to create competing commercial services without permission
+- Respect rate limits when accessing the data programmatically
+
+### Contact:
+For questions about data usage or partnerships: niko@axrisi.com
+
+## Data Sources
+The technology detection data on this site comes from:
+- Community contributions via our browser extension
+- Automated website analysis
+- Publicly available technology information
+- User-submitted technology discoveries
+
+All data represents publicly accessible information about websites and their technology stacks.
