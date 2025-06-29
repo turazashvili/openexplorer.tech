@@ -1,7 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { getExtensionUrl } from '../utils/browserDetection';
 
 const Footer: React.FC = () => {
+  const { url: extensionUrl, storeName } = getExtensionUrl();
+
   return (
     <footer className="bg-white border-t border-gray-200 mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -37,12 +40,12 @@ const Footer: React.FC = () => {
               </li>
               <li>
                 <a
-                  href="https://addons.mozilla.org/en-US/firefox/addon/openexplorer_tech/" 
+                  href={extensionUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-600 hover:text-gray-900 transition-colors"
                 >
-                  Browser Extension
+                  {storeName} Extension
                 </a>
               </li>
               <li>

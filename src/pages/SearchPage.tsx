@@ -11,7 +11,7 @@ import RealtimeUpdateBanner from '../components/RealtimeUpdateBanner';
 import AutoRefreshSettings from '../components/AutoRefreshSettings';
 import { searchWebsites, SearchParams, WebsiteResult, SearchSuggestion } from '../lib/api';
 import { useRealtimeStats, useRealtimeSearch, useRealtimeWebsiteList } from '../hooks/useRealtimeData';
-import { detectBrowser } from '../utils/browserDetection';
+import { detectBrowser, getExtensionUrl } from '../utils/browserDetection';
 
 const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -42,6 +42,7 @@ const SearchPage: React.FC = () => {
 
   // Get browser info for extension suggestions
   const browser = detectBrowser();
+  const { url: extensionUrl, storeName } = getExtensionUrl();
 
   const currentQuery = searchParams.get('q') || '';
   const currentFilters = {
@@ -232,17 +233,22 @@ const SearchPage: React.FC = () => {
           
           {/* Browser-specific extension suggestion */}
           <div className="mb-6 sm:mb-8">
-            <div className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+            <a
+              href={extensionUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 hover:bg-blue-100 hover:border-blue-300 transition-colors cursor-pointer"
+            >
               <Download className="h-4 w-4 mr-2" />
               <span>
                 {browser.isFirefox 
-                  ? 'Get our Firefox extension for instant analysis while browsing' 
+                  ? `Get our ${storeName} extension for instant analysis while browsing` 
                   : browser.isChromiumBased
-                    ? 'Get our Chrome extension for instant analysis while browsing'
-                    : 'Get our browser extension for instant analysis while browsing'
+                    ? `Get our ${storeName} extension for instant analysis while browsing`
+                    : `Get our ${storeName} extension for instant analysis while browsing`
                 }
               </span>
-            </div>
+            </a>
           </div>
           
           <div className="px-4">
