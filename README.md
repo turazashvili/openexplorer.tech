@@ -202,10 +202,10 @@ GET /api/search?tech=React
 
 **Search by Category:**
 ```bash
-# Find e-commerce platforms
-GET /api/search?category=E-commerce
+# Find all websites using Stripe
+GET /api/search?tech=Stripe
 
-# Response: Shopify, WooCommerce, Magento sites
+# Response: supabase.com, yaiqa.com, saaspixel.com
 ```
 
 **URL Pattern Matching:**
@@ -257,25 +257,12 @@ Search: "react" → Finds React framework AND reactjs.org
 
 ## 🚀 Quick Demo
 
-1. **🌐 Visit the Web App**: Search for any website or technology
-2. **🔌 Install Extension**: Get real-time analysis on any site
-3. **📊 Explore Data**: Browse 2.5M+ analyzed websites
-4. **🔍 Try Smart Search**: Search "shopify" to see e-commerce sites
+1. **🌐 Visit the Web App**: [OpenExplorer.tech](https://OpenExplorer.tech) — Search for any website or technology
+2. **🔌 Install Extension**: [Chrome Extension](https://OpenExplorer.tech/extension) — Get real-time analysis on any site
+3. **📊 Explore Data**: Browse 7,000+ analyzed websites
+4. **🔍 Try Smart Search**: Search "stripe" to see payment-enabled sites
 5. **⚡ See Real-time**: Watch live updates as data streams in
 
-## 🎨 Screenshots
-
-```
-🖥️ Web Interface               🔌 Chrome Extension           📊 Analytics Dashboard
-┌─────────────────────┐       ┌─────────────────────┐       ┌─────────────────────┐
-│ [🔍] Search Box     │       │ ⚡ Analyzing...     │       │ 📈 Trend Charts    │
-│                     │       │                     │       │                     │
-│ 🌐 Website Results  │       │ 🛠️ Technologies:    │       │ 🔥 Popular Techs    │
-│ ├─ react.dev        │  ──►  │ ✅ React           │  ──►  │ ├─ React: 45%      │
-│ ├─ vue.js.org       │       │ ✅ TypeScript      │       │ ├─ Vue: 23%        │
-│ └─ angular.io       │       │ ✅ Vite            │       │ └─ Angular: 18%    │
-└─────────────────────┘       └─────────────────────┘       └─────────────────────┘
-```
 
 ## 🌟 What Makes Open Tech Explorer Special?
 
@@ -286,9 +273,8 @@ Search: "react" → Finds React framework AND reactjs.org
 - **✅ After**: Automated detection, real-time intelligence, community-driven accuracy
 
 ### 🚀 Impact Metrics
-- **2.5M+** websites analyzed and categorized
-- **500+** technologies automatically detected
-- **10,000+** daily community contributions
+- **7k+** websites analyzed and categorized
+- **72+** technologies automatically detected
 - **<200ms** average search response time
 - **99.9%** API uptime and reliability
 
